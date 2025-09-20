@@ -40,7 +40,147 @@ The response shall constitute JSON of the following structure:
 5. Integration tests
 6. Dockerized application
 
-# Docs
-The public Kraken API might be used to retrieve the above LTP information
-[API Documentation](https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getTickerInformation)
-(The values of the last traded price is called “last trade closed”)
+# Build and Run Instructions
+
+## Prerequisites
+- Go 1.23 or higher
+- Docker (optional)
+
+## Local Build and Run
+
+### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd go-exercise
+```
+
+### 2. Download dependencies
+```bash
+go mod download
+```
+
+### 3. Build the application
+```bash
+go build -o server ./cmd/server
+```
+
+### 4. Run the server
+```bash
+./server
+```
+
+The server will be available at `http://localhost:8080`
+
+## Environment Variables
+
+You can customize the application behavior using these environment variables:
+
+- `HTTP_ADDR` - Server listening address (default: `:8080`)
+- `KRAKEN_URL` - Kraken API base URL (default: `https://api.kraken.com`)
+- `CACHE_TTL` - Cache time-to-live (default: `60s`)
+- `HTTP_TIMEOUT` - HTTP request timeout (default: `3s`)
+
+Example:
+```bash
+HTTP_ADDR=:9000 CACHE_TTL=30s ./server
+```
+
+## Docker Deployment
+
+### Build Docker image
+```bash
+docker build -t ltp-api .
+```
+
+### Run container
+```bash
+docker run -p 8080:8080 ltp-api
+```
+
+### Using docker-compose
+```bash
+docker-compose up -d
+```
+
+## Testing
+
+### Run all tests
+```bash
+go test ./...
+```
+
+### Run tests with coverage
+```bash
+go test -cover ./...
+```
+
+### Run tests with verbose output
+```bash
+go test -v ./...
+```
+
+## API Usage
+
+### Get all supported pairs
+```bash
+curl http://localhost:8080/api/v1/ltp
+```
+
+### Get single pair
+```bash
+curl "http://localhost:8080/api/v1/ltp?pair=BTC/USD"
+```
+
+### Get multiple pairs
+```bash
+curl "http://localhost:8080/api/v1/ltp?pairs=BTC/USD,BTC/EUR,BTC/CHF"
+```
+
+### Expected Response Format
+```json
+{
+  "ltp": [
+    {
+      "pair": "BTC/CHF",
+      "amount": 49000.12
+    },
+    {
+      "pair": "BTC/EUR",
+      "amount": 50000.12
+    },
+    {
+      "pair": "BTC/USD",
+      "amount": 52000.12
+    }
+  ]
+}
+```
+
+## Architecture
+
+The project follows clean architecture principles with separation of concerns:
+
+- `cmd/server` - Application entry point
+- `internal/httpserver` - HTTP server and handlers
+- `internal/ltp` - Business logic for LTP service
+- `internal/kraken` - Kraken API client
+- `internal/cache` - Data caching layer
+- `internal/pairs` - Currency pair utilities
+- `internal/resp` - HTTP response utilities
+
+## Features
+
+- Real-time Bitcoin price data from Kraken API
+- 1-minute data caching for optimal performance
+- Support for single and multiple currency pair requests
+- CORS support for web applications
+- Graceful shutdown on SIGINT/SIGTERM
+- Comprehensive error handling with appropriate HTTP status codes
+- Input validation and sanitization
+- Request logging
+- Panic recovery middleware
+
+# API Documentation
+The public Kraken API is used to retrieve the LTP information
+[Kraken API Documentation](https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getTickerInformation)
+(The last traded price value is called "last trade closed")
