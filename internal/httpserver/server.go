@@ -14,6 +14,7 @@ import (
 	"github.com/Zmey56/go-exercise/internal/health"
 	"github.com/Zmey56/go-exercise/internal/ltp"
 	"github.com/Zmey56/go-exercise/internal/metrics"
+	"github.com/Zmey56/go-exercise/internal/ratelimit"
 	"github.com/Zmey56/go-exercise/internal/resp"
 )
 
@@ -28,6 +29,7 @@ type Server struct {
 	svc          LTPProvider
 	http         *http.Server
 	healthChecker *health.Checker
+	rateLimiter  *ratelimit.RateLimiter
 }
 
 func New(addr string, svc LTPProvider) *Server {
@@ -36,6 +38,7 @@ func New(addr string, svc LTPProvider) *Server {
 		addr:          addr,
 		svc:           svc,
 		healthChecker: health.NewChecker(),
+		rateLimiter:   ratelimit.NewRateLimiter(ratelimit.DefaultConfig()),
 	}
 
 	// API endpoints
@@ -48,8 +51,8 @@ func New(addr string, svc LTPProvider) *Server {
 	// Metrics endpoint
 	mux.Handle("/metrics", promhttp.Handler())
 
-	// Add middleware: CORS, logging, recovery, metrics
-	handler := cors(logging(metricsMiddleware(recovery(mux))))
+	// Add middleware: CORS, logging, recovery, metrics, rate limiting
+	handler := cors(logging(s.rateLimitMiddleware(metricsMiddleware(recovery(mux)))))
 
 	s.http = &http.Server{
 		Addr:              addr,
@@ -67,6 +70,7 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.rateLimiter.Stop()
 	return s.http.Shutdown(ctx)
 }
 
@@ -226,4 +230,37 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+// rateLimitMiddleware applies rate limiting based on client IP
+func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip rate limiting for health and metrics endpoints
+		if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ip := ratelimit.ExtractIP(r)
+		if !s.rateLimiter.Allow(ip) {
+			resp.JSON(w, http.StatusTooManyRequests, resp.Error{
+				Message: "rate limit exceeded",
+			})
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// GetRateLimitStats returns current rate limiting statistics
+func (s *Server) GetRateLimitStats() ratelimit.Stats {
+	return s.rateLimiter.GetStats()
+}
+
+// UpdateRateLimitMetrics updates Prometheus metrics with current rate limiter stats
+func (s *Server) UpdateRateLimitMetrics() {
+	stats := s.rateLimiter.GetStats()
+	metrics.RateLimitGlobalTokens.Set(float64(stats.GlobalTokens))
+	metrics.RateLimitGlobalUtilization.Set(stats.GlobalUtilization)
 }

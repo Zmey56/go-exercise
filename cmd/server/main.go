@@ -40,6 +40,20 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// Start metrics updater
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				srv.UpdateRateLimitMetrics()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	errCh := make(chan error, 1)
 	go func() {
 		log.Printf("Listening on %s", addr)
