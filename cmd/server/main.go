@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Zmey56/go-exercise/internal/cache"
+	"github.com/Zmey56/go-exercise/internal/health"
 	"github.com/Zmey56/go-exercise/internal/httpserver"
 	"github.com/Zmey56/go-exercise/internal/kraken"
 	"github.com/Zmey56/go-exercise/internal/ltp"
@@ -28,6 +29,12 @@ func main() {
 	svc := ltp.NewService(kclient, c)
 
 	srv := httpserver.New(addr, svc)
+
+	// Configure health checks
+	cacheCheck := health.NewCacheCheck(c)
+	krakenCheck := health.NewKrakenCheck(kclient)
+	srv.AddHealthCheck(cacheCheck)
+	srv.AddHealthCheck(krakenCheck)
 
 	// Graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

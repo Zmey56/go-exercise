@@ -6,10 +6,14 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/Zmey56/go-exercise/internal/health"
 	"github.com/Zmey56/go-exercise/internal/ltp"
+	"github.com/Zmey56/go-exercise/internal/metrics"
 	"github.com/Zmey56/go-exercise/internal/resp"
 )
 
@@ -20,18 +24,32 @@ type LTPProvider interface {
 }
 
 type Server struct {
-	addr string
-	svc  LTPProvider
-	http *http.Server
+	addr         string
+	svc          LTPProvider
+	http         *http.Server
+	healthChecker *health.Checker
 }
 
 func New(addr string, svc LTPProvider) *Server {
 	mux := http.NewServeMux()
-	s := &Server{addr: addr, svc: svc}
+	s := &Server{
+		addr:          addr,
+		svc:           svc,
+		healthChecker: health.NewChecker(),
+	}
+
+	// API endpoints
 	mux.HandleFunc("/api/v1/ltp", s.handleLTP)
 
-	// Add middleware: CORS, logging, recovery
-	handler := cors(logging(recovery(mux)))
+	// Health endpoints
+	mux.HandleFunc("/health", s.handleHealth)
+	mux.HandleFunc("/ready", s.handleReady)
+
+	// Metrics endpoint
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// Add middleware: CORS, logging, recovery, metrics
+	handler := cors(logging(metricsMiddleware(recovery(mux))))
 
 	s.http = &http.Server{
 		Addr:              addr,
@@ -50,6 +68,10 @@ func (s *Server) Start() error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.http.Shutdown(ctx)
+}
+
+func (s *Server) AddHealthCheck(check health.Check) {
+	s.healthChecker.AddCheck(check)
 }
 
 func (s *Server) handleLTP(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +128,40 @@ func (s *Server) handleLTP(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(out)
 }
 
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		resp.JSON(w, http.StatusMethodNotAllowed, resp.Error{Message: "method not allowed"})
+		return
+	}
+
+	response := s.healthChecker.HealthCheck(r.Context())
+	statusCode := http.StatusOK
+	if response.Status == health.StatusUnhealthy {
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		resp.JSON(w, http.StatusMethodNotAllowed, resp.Error{Message: "method not allowed"})
+		return
+	}
+
+	response := s.healthChecker.ReadinessCheck(r.Context())
+	statusCode := http.StatusOK
+	if response.Status == health.StatusUnhealthy {
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(response)
+}
+
 // cors adds CORS headers
 func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -142,4 +198,32 @@ func recovery(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+// metricsMiddleware adds HTTP request metrics
+func metricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		// Wrap ResponseWriter to capture status code
+		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		next.ServeHTTP(rw, r)
+
+		duration := time.Since(start).Seconds()
+		status := strconv.Itoa(rw.statusCode)
+
+		metrics.HTTPRequests.WithLabelValues(r.Method, r.URL.Path, status).Inc()
+		metrics.HTTPDuration.WithLabelValues(r.Method, r.URL.Path, status).Observe(duration)
+	})
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
 }

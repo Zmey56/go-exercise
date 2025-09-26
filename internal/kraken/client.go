@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/Zmey56/go-exercise/internal/metrics"
 )
 
 type Client struct {
@@ -31,7 +33,15 @@ func NewClient(baseURL string, httpClient *http.Client) *Client {
 // GetTickerPrices requests Kraken tickers for multiple symbols (comma-separated)
 // symbols: e.g. ["XBTUSD","XBTEUR"]
 func (c *Client) GetTickerPrices(ctx context.Context, symbols []string) (map[string]float64, error) {
+	start := time.Now()
+	var status string
+	defer func() {
+		metrics.KrakenRequests.WithLabelValues(status).Inc()
+		metrics.KrakenDuration.WithLabelValues(status).Observe(time.Since(start).Seconds())
+	}()
+
 	if len(symbols) == 0 {
+		status = "error"
 		return nil, fmt.Errorf("no symbols provided")
 	}
 
@@ -39,31 +49,34 @@ func (c *Client) GetTickerPrices(ctx context.Context, symbols []string) (map[str
 	v.Set("pair", strings.Join(symbols, ","))
 	endpoint := c.baseURL + "/0/public/Ticker?" + v.Encode()
 
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
+		status = "error"
 		return nil, err
 	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
+		status = "error"
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 
 	if resp.StatusCode != http.StatusOK {
+		status = "error"
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return nil, fmt.Errorf("kraken status %d: %s", resp.StatusCode, string(b))
 	}
 
 	var tr TickerResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		status = "error"
 		return nil, err
 	}
 
-
 	if len(tr.Error) > 0 {
+		status = "error"
 		return nil, errors.New(strings.Join(tr.Error, "; "))
 	}
 
@@ -78,5 +91,6 @@ func (c *Client) GetTickerPrices(ctx context.Context, symbols []string) (map[str
 			out[sym] = price
 		}
 	}
+	status = "success"
 	return out, nil
 }
