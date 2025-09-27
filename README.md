@@ -40,6 +40,14 @@ The response shall constitute JSON of the following structure:
 5. Integration tests
 6. Dockerized application
 
+# Additional Requirements:
+
+1. Add /health (liveness) and /ready (readiness that checks cache warmness and Kraken reachability). Expose /metrics with Prometheus counters/histograms for upstream calls and cache hits/misses.
+2. Implement token-bucket rate limiting (per-IP and global) + exponential backoff with jitter for 429/5xx from Kraken; export limiter metrics and add tests that simulate throttling.
+3. Provide a Redis cache adapter (config-switchable) and an in-memory fallback; show TTL expiry, eviction, and background refresh tests.
+4. Publish go test -cover ./... results and add explicit failure-path tests (network timeout, bad payloads, partial pair failures).
+5. Ship minimal OpenAPI (Swagger) for /api/v1/ltp with schemas for success and partial-success.
+
 # Build and Run Instructions
 
 ## Prerequisites
@@ -92,14 +100,49 @@ HTTP_ADDR=:9000 CACHE_TTL=30s ./server
 docker build -t ltp-api .
 ```
 
-### Run container
+### Run container (memory cache only)
 ```bash
 docker run -p 8080:8080 ltp-api
 ```
 
-### Using docker-compose
+### Using docker-compose (with Redis)
 ```bash
+# Full stack with Redis cache
 docker-compose up -d
+
+# Development with Redis
+docker-compose -f docker-compose.dev.yml up -d
+
+# Redis only (for testing)
+docker-compose -f docker-compose.redis-only.yml up -d
+```
+
+### Cache Configuration Options
+
+The application supports multiple cache configurations:
+
+#### Memory Cache (Default)
+```bash
+docker run -p 8080:8080 \
+  -e CACHE_TYPE=memory \
+  ltp-api
+```
+
+#### Redis Cache
+```bash
+docker run -p 8080:8080 \
+  -e CACHE_TYPE=redis \
+  -e REDIS_URL=redis://localhost:6379 \
+  ltp-api
+```
+
+#### Fallback Cache (Recommended for Production)
+```bash
+docker run -p 8080:8080 \
+  -e CACHE_TYPE=fallback \
+  -e REDIS_URL=redis://localhost:6379 \
+  -e CACHE_ENABLE_FALLBACK=true \
+  ltp-api
 ```
 
 ## Testing
@@ -155,6 +198,8 @@ curl "http://localhost:8080/api/v1/ltp?pairs=BTC/USD,BTC/EUR,BTC/CHF"
   ]
 }
 ```
+
+For a machine-readable contract, see the minimal OpenAPI description at `docs/openapi.yaml`.
 
 ## Architecture
 

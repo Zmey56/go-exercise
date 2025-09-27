@@ -66,10 +66,14 @@ func (c *Checker) ReadinessCheck(ctx context.Context) Response {
 }
 
 type CacheCheck struct {
-	cache interface{ Get(key string) (float64, bool) }
+	cache interface {
+		Get(key string) (float64, bool)
+	}
 }
 
-func NewCacheCheck(cache interface{ Get(key string) (float64, bool) }) *CacheCheck {
+func NewCacheCheck(cache interface {
+	Get(key string) (float64, bool)
+}) *CacheCheck {
 	return &CacheCheck{cache: cache}
 }
 

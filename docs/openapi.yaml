@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: Bitcoin LTP API
+  version: 0.1.0
+  description: |
+    Minimal OpenAPI definition for the Last Traded Price (LTP) endpoint.
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /api/v1/ltp:
+    get:
+      summary: Get last traded prices for Bitcoin pairs
+      description: |
+        Returns the latest known Bitcoin LTP values for supported currency pairs.
+        Supply either `pair` for a single pair or `pairs` for multiple pairs.
+      parameters:
+        - name: pair
+          in: query
+          description: Single currency pair to fetch in BASE/QUOTE format, e.g. `BTC/USD`.
+          schema:
+            type: string
+          required: false
+        - name: pairs
+          in: query
+          description: Comma-separated list of currency pairs in BASE/QUOTE format.
+          schema:
+            type: string
+          required: false
+      responses:
+        '200':
+          description: Successful lookup with complete data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '207':
+          description: Partial success when some requested pairs cannot be priced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartialSuccessResponse'
+        '400':
+          description: Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - LTP
+components:
+  schemas:
+    Quote:
+      type: object
+      required:
+        - pair
+        - amount
+      properties:
+        pair:
+          type: string
+          example: BTC/USD
+        amount:
+          type: number
+          format: double
+          example: 52000.12
+    SuccessResponse:
+      type: object
+      required:
+        - ltp
+      properties:
+        ltp:
+          type: array
+          items:
+            $ref: '#/components/schemas/Quote'
+          description: Ordered list of quotes returned by the service.
+    PartialSuccessResponse:
+      type: object
+      required:
+        - ltp
+        - partialFailures
+      properties:
+        ltp:
+          type: array
+          items:
+            $ref: '#/components/schemas/Quote'
+          description: Quotes that were successfully priced.
+        partialFailures:
+          type: array
+          description: Pairs that could not be priced along with the reason.
+          items:
+            $ref: '#/components/schemas/PartialFailure'
+    PartialFailure:
+      type: object
+      required:
+        - pair
+        - reason
+      properties:
+        pair:
+          type: string
+          example: BTC/GBP
+        reason:
+          type: string
+          example: Pair not supported by Kraken.
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: invalid pair

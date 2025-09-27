@@ -30,10 +30,10 @@ type KrakenAPI interface {
 	GetTickerPrices(ctx context.Context, symbols []string) (map[string]float64, error)
 }
 
-// Cache interface for caching
+// Cache interface for caching (legacy interface for backward compatibility)
 type Cache interface {
 	Get(key string) (float64, bool)
-	Set(key string, v float64)
+	Set(key string, value float64)
 }
 
 // Service represents the service for getting LTP

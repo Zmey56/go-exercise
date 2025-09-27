@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/Zmey56/go-exercise/internal/health"
 	"github.com/Zmey56/go-exercise/internal/ltp"
 	"github.com/Zmey56/go-exercise/internal/metrics"
 	"github.com/Zmey56/go-exercise/internal/ratelimit"
 	"github.com/Zmey56/go-exercise/internal/resp"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // LTPProvider — minimal interface for the service
@@ -25,11 +25,11 @@ type LTPProvider interface {
 }
 
 type Server struct {
-	addr         string
-	svc          LTPProvider
-	http         *http.Server
+	addr          string
+	svc           LTPProvider
+	http          *http.Server
 	healthChecker *health.Checker
-	rateLimiter  *ratelimit.RateLimiter
+	rateLimiter   *ratelimit.RateLimiter
 }
 
 func New(addr string, svc LTPProvider) *Server {
