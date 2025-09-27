@@ -6,6 +6,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +49,10 @@ func New(addr string, svc LTPProvider) *Server {
 	// Health endpoints
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.HandleFunc("/ready", s.handleReady)
+
+	// OpenAPI documentation
+	mux.HandleFunc("/openapi.yaml", s.handleOpenAPI)
+	mux.HandleFunc("/docs", s.handleSwaggerUI)
 
 	// Metrics endpoint
 	mux.Handle("/metrics", promhttp.Handler())
@@ -263,4 +269,69 @@ func (s *Server) UpdateRateLimitMetrics() {
 	stats := s.rateLimiter.GetStats()
 	metrics.RateLimitGlobalTokens.Set(float64(stats.GlobalTokens))
 	metrics.RateLimitGlobalUtilization.Set(stats.GlobalUtilization)
+}
+
+func (s *Server) handleOpenAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Find the OpenAPI file relative to the project root
+	openapiPath := filepath.Join("docs", "openapi.yaml")
+
+	// Check if file exists
+	if _, err := os.Stat(openapiPath); os.IsNotExist(err) {
+		http.Error(w, "OpenAPI specification not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/yaml")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	http.ServeFile(w, r, openapiPath)
+}
+
+func (s *Server) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Swagger UI HTML that loads the OpenAPI spec from /openapi.yaml
+	swaggerHTML := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bitcoin LTP API Documentation</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = () => {
+            window.ui = SwaggerUIBundle({
+                url: '/openapi.yaml',
+                dom_id: '#swagger-ui',
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                layout: "StandaloneLayout",
+                tryItOutEnabled: true,
+                filter: true,
+                displayOperationId: false,
+                displayRequestDuration: true,
+            });
+        };
+    </script>
+</body>
+</html>`
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(swaggerHTML))
 }

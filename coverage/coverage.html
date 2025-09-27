@@ -1,0 +1,2928 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>server: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/Zmey56/go-exercise/cmd/server/main.go (0.0%)</option>
+				
+				<option value="file1">github.com/Zmey56/go-exercise/internal/backoff/backoff.go (97.1%)</option>
+				
+				<option value="file2">github.com/Zmey56/go-exercise/internal/cache/factory.go (0.0%)</option>
+				
+				<option value="file3">github.com/Zmey56/go-exercise/internal/cache/fallback.go (46.3%)</option>
+				
+				<option value="file4">github.com/Zmey56/go-exercise/internal/cache/interface.go (100.0%)</option>
+				
+				<option value="file5">github.com/Zmey56/go-exercise/internal/cache/legacy.go (90.0%)</option>
+				
+				<option value="file6">github.com/Zmey56/go-exercise/internal/cache/memory.go (80.3%)</option>
+				
+				<option value="file7">github.com/Zmey56/go-exercise/internal/cache/redis.go (65.5%)</option>
+				
+				<option value="file8">github.com/Zmey56/go-exercise/internal/health/checker.go (80.8%)</option>
+				
+				<option value="file9">github.com/Zmey56/go-exercise/internal/health/legacy_cache_check.go (90.0%)</option>
+				
+				<option value="file10">github.com/Zmey56/go-exercise/internal/httpserver/server.go (72.6%)</option>
+				
+				<option value="file11">github.com/Zmey56/go-exercise/internal/kraken/client.go (91.7%)</option>
+				
+				<option value="file12">github.com/Zmey56/go-exercise/internal/ltp/service.go (97.8%)</option>
+				
+				<option value="file13">github.com/Zmey56/go-exercise/internal/pairs/pairs.go (97.1%)</option>
+				
+				<option value="file14">github.com/Zmey56/go-exercise/internal/ratelimit/bucket.go (96.0%)</option>
+				
+				<option value="file15">github.com/Zmey56/go-exercise/internal/ratelimit/limiter.go (98.2%)</option>
+				
+				<option value="file16">github.com/Zmey56/go-exercise/internal/resp/response.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">high coverage</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "context"
+        "fmt"
+        "log"
+        "os"
+        "os/signal"
+        "syscall"
+        "time"
+
+        "github.com/Zmey56/go-exercise/internal/cache"
+        "github.com/Zmey56/go-exercise/internal/health"
+        "github.com/Zmey56/go-exercise/internal/httpserver"
+        "github.com/Zmey56/go-exercise/internal/kraken"
+        "github.com/Zmey56/go-exercise/internal/ltp"
+)
+
+func main() <span class="cov0" title="0">{
+        // Config from environment variables (without external libs)
+        addr := getenv("HTTP_ADDR", ":8080")
+        krakenURL := getenv("KRAKEN_URL", "https://api.kraken.com")
+        timeout := getDuration("HTTP_TIMEOUT", 3*time.Second)
+
+        // Create cache using factory
+        cacheConfig := cache.LoadConfigFromEnv()
+        newCache, err := cache.CreateCacheFromEnv()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Failed to create cache: %v", err)
+        }</span>
+        <span class="cov0" title="0">defer func() </span><span class="cov0" title="0">{
+                if err := newCache.Close(); err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Failed to close cache: %v", err)
+                }</span>
+        }()
+
+        // Create legacy cache wrapper for backward compatibility
+        <span class="cov0" title="0">c := cache.NewLegacyCache(newCache)
+
+        // Infrastructure
+        httpClient := kraken.NewHTTPClient(timeout)
+        kclient := kraken.NewClient(krakenURL, httpClient)
+        svc := ltp.NewService(kclient, c)
+
+        srv := httpserver.New(addr, svc)
+
+        // Configure health checks
+        cacheCheck := health.NewLegacyCacheCheck(c)
+        krakenCheck := health.NewKrakenCheck(kclient)
+        srv.AddHealthCheck(cacheCheck)
+        srv.AddHealthCheck(krakenCheck)
+
+        // Graceful shutdown
+        ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+        defer stop()
+
+        // Start background cache refresh
+        refreshFunc := func(ctx context.Context, key string) (interface{}, time.Duration, error) </span><span class="cov0" title="0">{
+                // Refresh by fetching from Kraken API
+                pairs := []string{key}
+                quotes, err := svc.GetLTP(ctx, pairs)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, 0, err
+                }</span>
+                <span class="cov0" title="0">if len(quotes) == 0 </span><span class="cov0" title="0">{
+                        return nil, 0, fmt.Errorf("no quotes returned for key: %s", key)
+                }</span>
+                <span class="cov0" title="0">return quotes[0].Amount, cacheConfig.DefaultTTL, nil</span>
+        }
+
+        <span class="cov0" title="0">if err := newCache.StartBackgroundRefresh(ctx, refreshFunc); err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to start background refresh: %v", err)
+        }</span>
+        <span class="cov0" title="0">defer func() </span><span class="cov0" title="0">{
+                if err := newCache.StopBackgroundRefresh(); err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Failed to stop background refresh: %v", err)
+                }</span>
+        }()
+
+        // Start metrics updater
+        <span class="cov0" title="0">go func() </span><span class="cov0" title="0">{
+                ticker := time.NewTicker(5 * time.Second)
+                defer ticker.Stop()
+                for </span><span class="cov0" title="0">{
+                        select </span>{
+                        case &lt;-ticker.C:<span class="cov0" title="0">
+                                srv.UpdateRateLimitMetrics()</span>
+                        case &lt;-ctx.Done():<span class="cov0" title="0">
+                                return</span>
+                        }
+                }
+        }()
+
+        <span class="cov0" title="0">errCh := make(chan error, 1)
+        go func() </span><span class="cov0" title="0">{
+                log.Printf("Listening on %s", addr)
+                errCh &lt;- srv.Start()
+        }</span>()
+
+        <span class="cov0" title="0">select </span>{
+        case &lt;-ctx.Done():<span class="cov0" title="0">
+                log.Println("shutting down...")
+                _ = srv.Shutdown(context.Background())</span>
+        case err := &lt;-errCh:<span class="cov0" title="0">
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Printf("server error: %v\n", err)
+                }</span>
+        }
+}
+
+func getenv(key, def string) string <span class="cov0" title="0">{
+        if v := os.Getenv(key); v != "" </span><span class="cov0" title="0">{
+                return v
+        }</span>
+        <span class="cov0" title="0">return def</span>
+}
+
+func getDuration(key string, def time.Duration) time.Duration <span class="cov0" title="0">{
+        if v := os.Getenv(key); v != "" </span><span class="cov0" title="0">{
+                if d, err := time.ParseDuration(v); err == nil </span><span class="cov0" title="0">{
+                        return d
+                }</span>
+        }
+        <span class="cov0" title="0">return def</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package backoff
+
+import (
+        "context"
+        "fmt"
+        "math"
+        "math/rand"
+        "net/http"
+        "strconv"
+        "time"
+
+        "github.com/Zmey56/go-exercise/internal/metrics"
+)
+
+// Config holds backoff configuration
+type Config struct {
+        BaseDelay    time.Duration // initial delay
+        MaxDelay     time.Duration // maximum delay
+        MaxAttempts  int           // maximum number of attempts
+        Multiplier   float64       // delay multiplier (e.g., 2.0 for doubling)
+        JitterFactor float64       // jitter factor (0.0 to 1.0)
+}
+
+// DefaultConfig returns sensible default configuration
+func DefaultConfig() Config <span class="cov3" title="2">{
+        return Config{
+                BaseDelay:    100 * time.Millisecond,
+                MaxDelay:     30 * time.Second,
+                MaxAttempts:  5,
+                Multiplier:   2.0,
+                JitterFactor: 0.1, // 10% jitter
+        }
+}</span>
+
+// Backoff implements exponential backoff with jitter
+type Backoff struct {
+        config Config
+        rng    *rand.Rand
+}
+
+// New creates a new backoff instance
+func New(config Config) *Backoff <span class="cov6" title="7">{
+        return &amp;Backoff{
+                config: config,
+                rng:    rand.New(rand.NewSource(time.Now().UnixNano())),
+        }
+}</span>
+
+// RetryableFunc is a function that can be retried
+type RetryableFunc func() error
+
+// ShouldRetry determines if an error should trigger a retry
+type ShouldRetry func(error) bool
+
+// Retry executes a function with exponential backoff
+func (b *Backoff) Retry(ctx context.Context, serviceName string, fn RetryableFunc, shouldRetry ShouldRetry) error <span class="cov5" title="5">{
+        var lastErr error
+
+        for attempt := 1; attempt &lt;= b.config.MaxAttempts; attempt++ </span><span class="cov7" title="10">{
+                attemptStr := strconv.Itoa(attempt)
+                metrics.BackoffAttempts.WithLabelValues(serviceName, attemptStr).Inc()
+
+                // Execute the function
+                err := fn()
+                if err == nil </span><span class="cov3" title="2">{
+                        return nil // Success
+                }</span>
+
+                <span class="cov7" title="8">lastErr = err
+
+                // Check if we should retry
+                if !shouldRetry(err) </span><span class="cov1" title="1">{
+                        return err // Don't retry this error
+                }</span>
+
+                // Don't sleep after the last attempt
+                <span class="cov6" title="7">if attempt == b.config.MaxAttempts </span><span class="cov1" title="1">{
+                        break</span>
+                }
+
+                // Calculate delay with exponential backoff and jitter
+                <span class="cov6" title="6">delay := b.calculateDelay(attempt)
+
+                // Record the delay
+                metrics.BackoffDelay.WithLabelValues(serviceName, attemptStr).Observe(delay.Seconds())
+
+                // Wait with context cancellation support
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov1" title="1">
+                        return ctx.Err()</span>
+                case &lt;-time.After(delay):<span class="cov5" title="5"></span>
+                        // Continue to next attempt
+                }
+        }
+
+        <span class="cov1" title="1">return fmt.Errorf("max attempts (%d) reached, last error: %w", b.config.MaxAttempts, lastErr)</span>
+}
+
+// calculateDelay computes the delay for a given attempt with jitter
+func (b *Backoff) calculateDelay(attempt int) time.Duration <span class="cov10" title="22">{
+        // Calculate base exponential delay
+        delay := float64(b.config.BaseDelay) * math.Pow(b.config.Multiplier, float64(attempt-1))
+
+        // Apply maximum delay limit
+        if delay &gt; float64(b.config.MaxDelay) </span><span class="cov3" title="2">{
+                delay = float64(b.config.MaxDelay)
+        }</span>
+
+        // Add jitter: ±jitterFactor of the delay
+        <span class="cov10" title="22">if b.config.JitterFactor &gt; 0 </span><span class="cov8" title="13">{
+                jitter := delay * b.config.JitterFactor
+                delay += (b.rng.Float64()*2 - 1) * jitter
+        }</span>
+
+        // Ensure delay is not negative
+        <span class="cov10" title="22">if delay &lt; 0 </span><span class="cov0" title="0">{
+                delay = float64(b.config.BaseDelay)
+        }</span>
+
+        <span class="cov10" title="22">return time.Duration(delay)</span>
+}
+
+// IsRetryableHTTPError checks if an HTTP error should be retried
+func IsRetryableHTTPError(err error) bool <span class="cov7" title="9">{
+        // Check for HTTP status codes that should be retried
+        if httpErr, ok := err.(HTTPError); ok </span><span class="cov7" title="8">{
+                code := httpErr.StatusCode
+                // Retry on 429 (Too Many Requests) and 5xx server errors
+                return code == http.StatusTooManyRequests || (code &gt;= 500 &amp;&amp; code &lt; 600)
+        }</span>
+        <span class="cov1" title="1">return false</span>
+}
+
+// HTTPError represents an HTTP error with status code
+type HTTPError struct {
+        StatusCode int
+        Message    string
+}
+
+func (e HTTPError) Error() string <span class="cov1" title="1">{
+        return fmt.Sprintf("HTTP %d: %s", e.StatusCode, e.Message)
+}</span>
+
+// NewHTTPError creates a new HTTP error
+func NewHTTPError(statusCode int, message string) HTTPError <span class="cov7" title="9">{
+        return HTTPError{
+                StatusCode: statusCode,
+                Message:    message,
+        }
+}</pre>
+		
+		<pre class="file" id="file2" style="display: none">package cache
+
+import (
+        "fmt"
+        "os"
+        "strconv"
+        "time"
+)
+
+// CacheType represents the type of cache to use
+type CacheType string
+
+const (
+        CacheTypeMemory   CacheType = "memory"
+        CacheTypeRedis    CacheType = "redis"
+        CacheTypeFallback CacheType = "fallback"
+)
+
+// CacheFactory creates cache instances based on configuration
+type CacheFactory struct{}
+
+// NewCacheFactory creates a new cache factory
+func NewCacheFactory() *CacheFactory <span class="cov0" title="0">{
+        return &amp;CacheFactory{}
+}</span>
+
+// CreateCache creates a cache instance based on configuration
+func (f *CacheFactory) CreateCache(config CacheConfig) (Cache, error) <span class="cov0" title="0">{
+        cacheType := f.getCacheTypeFromConfig(config)
+
+        switch cacheType </span>{
+        case CacheTypeMemory:<span class="cov0" title="0">
+                return NewInMemoryCache(config), nil</span>
+        case CacheTypeRedis:<span class="cov0" title="0">
+                return NewRedisCache(config)</span>
+        case CacheTypeFallback:<span class="cov0" title="0">
+                return f.createFallbackCache(config)</span>
+        default:<span class="cov0" title="0">
+                return nil, fmt.Errorf("unsupported cache type: %s", cacheType)</span>
+        }
+}
+
+// createFallbackCache creates a fallback cache with Redis primary and memory fallback
+func (f *CacheFactory) createFallbackCache(config CacheConfig) (Cache, error) <span class="cov0" title="0">{
+        // Create Redis cache as primary
+        redisConfig := config
+        redisCache, err := NewRedisCache(redisConfig)
+        if err != nil </span><span class="cov0" title="0">{
+                // Redis failed, fallback to memory only
+                return NewInMemoryCache(config), nil
+        }</span>
+
+        // Create fallback cache
+        <span class="cov0" title="0">return NewFallbackCache(redisCache, config), nil</span>
+}
+
+// getCacheTypeFromConfig determines cache type from configuration
+func (f *CacheFactory) getCacheTypeFromConfig(config CacheConfig) CacheType <span class="cov0" title="0">{
+        // Check environment variable first
+        if cacheType := os.Getenv("CACHE_TYPE"); cacheType != "" </span><span class="cov0" title="0">{
+                switch CacheType(cacheType) </span>{
+                case CacheTypeMemory, CacheTypeRedis, CacheTypeFallback:<span class="cov0" title="0">
+                        return CacheType(cacheType)</span>
+                }
+        }
+
+        // Default to fallback if Redis URL is provided
+        <span class="cov0" title="0">if config.RedisURL != "" &amp;&amp; config.RedisURL != "redis://localhost:6379" </span><span class="cov0" title="0">{
+                return CacheTypeFallback
+        }</span>
+
+        // Default to memory
+        <span class="cov0" title="0">return CacheTypeMemory</span>
+}
+
+// LoadConfigFromEnv loads cache configuration from environment variables
+func LoadConfigFromEnv() CacheConfig <span class="cov0" title="0">{
+        config := DefaultCacheConfig()
+
+        // Redis configuration
+        if redisURL := os.Getenv("REDIS_URL"); redisURL != "" </span><span class="cov0" title="0">{
+                config.RedisURL = redisURL
+        }</span>
+        <span class="cov0" title="0">if redisPassword := os.Getenv("REDIS_PASSWORD"); redisPassword != "" </span><span class="cov0" title="0">{
+                config.RedisPassword = redisPassword
+        }</span>
+        <span class="cov0" title="0">if redisDB := os.Getenv("REDIS_DB"); redisDB != "" </span><span class="cov0" title="0">{
+                if db, err := strconv.Atoi(redisDB); err == nil </span><span class="cov0" title="0">{
+                        config.RedisDB = db
+                }</span>
+        }
+
+        // TTL configuration
+        <span class="cov0" title="0">if defaultTTL := os.Getenv("CACHE_DEFAULT_TTL"); defaultTTL != "" </span><span class="cov0" title="0">{
+                if ttl, err := time.ParseDuration(defaultTTL); err == nil </span><span class="cov0" title="0">{
+                        config.DefaultTTL = ttl
+                }</span>
+        }
+        <span class="cov0" title="0">if maxTTL := os.Getenv("CACHE_MAX_TTL"); maxTTL != "" </span><span class="cov0" title="0">{
+                if ttl, err := time.ParseDuration(maxTTL); err == nil </span><span class="cov0" title="0">{
+                        config.MaxTTL = ttl
+                }</span>
+        }
+
+        // Eviction configuration
+        <span class="cov0" title="0">if maxSize := os.Getenv("CACHE_MAX_SIZE"); maxSize != "" </span><span class="cov0" title="0">{
+                if size, err := strconv.ParseInt(maxSize, 10, 64); err == nil </span><span class="cov0" title="0">{
+                        config.MaxSize = size
+                }</span>
+        }
+        <span class="cov0" title="0">if evictionPolicy := os.Getenv("CACHE_EVICTION_POLICY"); evictionPolicy != "" </span><span class="cov0" title="0">{
+                config.EvictionPolicy = evictionPolicy
+        }</span>
+
+        // Background refresh configuration
+        <span class="cov0" title="0">if refreshInterval := os.Getenv("CACHE_REFRESH_INTERVAL"); refreshInterval != "" </span><span class="cov0" title="0">{
+                if interval, err := time.ParseDuration(refreshInterval); err == nil </span><span class="cov0" title="0">{
+                        config.RefreshInterval = interval
+                }</span>
+        }
+        <span class="cov0" title="0">if refreshWorkers := os.Getenv("CACHE_REFRESH_WORKERS"); refreshWorkers != "" </span><span class="cov0" title="0">{
+                if workers, err := strconv.Atoi(refreshWorkers); err == nil </span><span class="cov0" title="0">{
+                        config.RefreshWorkers = workers
+                }</span>
+        }
+
+        // Fallback configuration
+        <span class="cov0" title="0">if enableFallback := os.Getenv("CACHE_ENABLE_FALLBACK"); enableFallback != "" </span><span class="cov0" title="0">{
+                if enable, err := strconv.ParseBool(enableFallback); err == nil </span><span class="cov0" title="0">{
+                        config.EnableFallback = enable
+                }</span>
+        }
+        <span class="cov0" title="0">if fallbackTTL := os.Getenv("CACHE_FALLBACK_TTL"); fallbackTTL != "" </span><span class="cov0" title="0">{
+                if ttl, err := time.ParseDuration(fallbackTTL); err == nil </span><span class="cov0" title="0">{
+                        config.FallbackTTL = ttl
+                }</span>
+        }
+
+        <span class="cov0" title="0">return config</span>
+}
+
+// CreateCacheFromEnv creates a cache instance from environment variables
+func CreateCacheFromEnv() (Cache, error) <span class="cov0" title="0">{
+        config := LoadConfigFromEnv()
+        factory := NewCacheFactory()
+        return factory.CreateCache(config)
+}</span>
+
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package cache
+
+import (
+        "context"
+        "fmt"
+        "sync"
+        "time"
+)
+
+// FallbackCache implements Cache interface with fallback to in-memory cache
+type FallbackCache struct {
+        primary   Cache
+        fallback  *InMemoryCache
+        config    CacheConfig
+        refreshCh chan string
+        stopCh    chan struct{}
+        wg        sync.WaitGroup
+        mu        sync.RWMutex
+}
+
+// NewFallbackCache creates a new fallback cache instance
+func NewFallbackCache(primary Cache, config CacheConfig) *FallbackCache <span class="cov4" title="3">{
+        fallbackConfig := config
+        fallbackConfig.DefaultTTL = config.FallbackTTL
+
+        return &amp;FallbackCache{
+                primary:   primary,
+                fallback:  NewInMemoryCache(fallbackConfig),
+                config:    config,
+                refreshCh: make(chan string, 1000),
+                stopCh:    make(chan struct{}),
+        }
+}</span>
+
+// Get retrieves a value from cache (primary first, then fallback)
+func (f *FallbackCache) Get(ctx context.Context, key string) (interface{}, bool, error) <span class="cov4" title="3">{
+        // Try primary cache first
+        value, found, err := f.primary.Get(ctx, key)
+        if err != nil </span><span class="cov1" title="1">{
+                // Primary failed, try fallback
+                value, found, err = f.fallback.Get(ctx, key)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, false, fmt.Errorf("both primary and fallback failed: %w", err)
+                }</span>
+                <span class="cov1" title="1">return value, found, nil</span>
+        }
+
+        <span class="cov2" title="2">if found </span><span class="cov2" title="2">{
+                // Update fallback with fresh data
+                if err := f.fallback.Set(ctx, key, value, f.config.FallbackTTL); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Warning: failed to update fallback cache for key %s: %v\n", key, err)
+                }</span>
+                <span class="cov2" title="2">return value, true, nil</span>
+        }
+
+        // Not found in primary, try fallback
+        <span class="cov0" title="0">value, found, err = f.fallback.Get(ctx, key)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, false, err
+        }</span>
+
+        <span class="cov0" title="0">return value, found, nil</span>
+}
+
+// Set stores a value in both primary and fallback caches
+func (f *FallbackCache) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error <span class="cov4" title="4">{
+        // Set in primary cache
+        if err := f.primary.Set(ctx, key, value, ttl); err != nil </span><span class="cov1" title="1">{
+                // Primary failed, set only in fallback
+                return f.fallback.Set(ctx, key, value, f.config.FallbackTTL)
+        }</span>
+
+        // Set in fallback cache (log error but don't fail)
+        <span class="cov4" title="3">if err := f.fallback.Set(ctx, key, value, f.config.FallbackTTL); err != nil </span><span class="cov0" title="0">{
+                // Log error but don't fail the operation since primary succeeded
+                // In a real application, you would use a proper logger here
+                fmt.Printf("Warning: failed to set fallback cache for key %s: %v\n", key, err)
+        }</span>
+        <span class="cov4" title="3">return nil</span>
+}
+
+// Delete removes a key from both caches
+func (f *FallbackCache) Delete(ctx context.Context, key string) error <span class="cov0" title="0">{
+        // Delete from primary
+        if err := f.primary.Delete(ctx, key); err != nil </span><span class="cov0" title="0">{
+                // Primary failed, delete from fallback
+                return f.fallback.Delete(ctx, key)
+        }</span>
+
+        // Delete from fallback
+        <span class="cov0" title="0">_ = f.fallback.Delete(ctx, key)
+        return nil</span>
+}
+
+// Clear clears both caches
+func (f *FallbackCache) Clear(ctx context.Context) error <span class="cov1" title="1">{
+        // Clear primary
+        if err := f.primary.Clear(ctx); err != nil </span><span class="cov0" title="0">{
+                // Primary failed, clear fallback
+                return f.fallback.Clear(ctx)
+        }</span>
+
+        // Clear fallback
+        <span class="cov1" title="1">_ = f.fallback.Clear(ctx)
+        return nil</span>
+}
+
+// GetMultiple retrieves multiple values from cache
+func (f *FallbackCache) GetMultiple(ctx context.Context, keys []string) (map[string]interface{}, error) <span class="cov0" title="0">{
+        // Try primary first
+        result, err := f.primary.GetMultiple(ctx, keys)
+        if err != nil </span><span class="cov0" title="0">{
+                // Primary failed, try fallback
+                return f.fallback.GetMultiple(ctx, keys)
+        }</span>
+
+        // Check for missing keys in fallback
+        <span class="cov0" title="0">missingKeys := make([]string, 0)
+        for _, key := range keys </span><span class="cov0" title="0">{
+                if _, found := result[key]; !found </span><span class="cov0" title="0">{
+                        missingKeys = append(missingKeys, key)
+                }</span>
+        }
+
+        <span class="cov0" title="0">if len(missingKeys) &gt; 0 </span><span class="cov0" title="0">{
+                fallbackResult, err := f.fallback.GetMultiple(ctx, missingKeys)
+                if err == nil </span><span class="cov0" title="0">{
+                        for key, value := range fallbackResult </span><span class="cov0" title="0">{
+                                result[key] = value
+                        }</span>
+                }
+        }
+
+        <span class="cov0" title="0">return result, nil</span>
+}
+
+// SetMultiple stores multiple values in both caches
+func (f *FallbackCache) SetMultiple(ctx context.Context, items map[string]interface{}, ttl time.Duration) error <span class="cov0" title="0">{
+        // Set in primary
+        if err := f.primary.SetMultiple(ctx, items, ttl); err != nil </span><span class="cov0" title="0">{
+                // Primary failed, set only in fallback
+                return f.fallback.SetMultiple(ctx, items, f.config.FallbackTTL)
+        }</span>
+
+        // Set in fallback
+        <span class="cov0" title="0">_ = f.fallback.SetMultiple(ctx, items, f.config.FallbackTTL)
+        return nil</span>
+}
+
+// GetWithMetadata retrieves a value with metadata
+func (f *FallbackCache) GetWithMetadata(ctx context.Context, key string) (*CacheEntry, bool, error) <span class="cov0" title="0">{
+        // Try primary first
+        entry, found, err := f.primary.GetWithMetadata(ctx, key)
+        if err != nil </span><span class="cov0" title="0">{
+                // Primary failed, try fallback
+                return f.fallback.GetWithMetadata(ctx, key)
+        }</span>
+
+        <span class="cov0" title="0">if found </span><span class="cov0" title="0">{
+                // Update fallback with fresh data
+                _ = f.fallback.SetWithMetadata(ctx, key, entry)
+                return entry, true, nil
+        }</span>
+
+        // Not found in primary, try fallback
+        <span class="cov0" title="0">return f.fallback.GetWithMetadata(ctx, key)</span>
+}
+
+// SetWithMetadata stores a value with metadata
+func (f *FallbackCache) SetWithMetadata(ctx context.Context, key string, entry *CacheEntry) error <span class="cov0" title="0">{
+        // Set in primary
+        if err := f.primary.SetWithMetadata(ctx, key, entry); err != nil </span><span class="cov0" title="0">{
+                // Primary failed, set only in fallback
+                return f.fallback.SetWithMetadata(ctx, key, entry)
+        }</span>
+
+        // Set in fallback
+        <span class="cov0" title="0">_ = f.fallback.SetWithMetadata(ctx, key, entry)
+        return nil</span>
+}
+
+// Expire sets expiration for a key
+func (f *FallbackCache) Expire(ctx context.Context, key string, ttl time.Duration) error <span class="cov0" title="0">{
+        // Set expiration in primary
+        if err := f.primary.Expire(ctx, key, ttl); err != nil </span><span class="cov0" title="0">{
+                // Primary failed, set in fallback
+                return f.fallback.Expire(ctx, key, f.config.FallbackTTL)
+        }</span>
+
+        // Set expiration in fallback
+        <span class="cov0" title="0">_ = f.fallback.Expire(ctx, key, f.config.FallbackTTL)
+        return nil</span>
+}
+
+// TTL returns time to live for a key
+func (f *FallbackCache) TTL(ctx context.Context, key string) (time.Duration, error) <span class="cov0" title="0">{
+        // Try primary first
+        ttl, err := f.primary.TTL(ctx, key)
+        if err != nil </span><span class="cov0" title="0">{
+                // Primary failed, try fallback
+                return f.fallback.TTL(ctx, key)
+        }</span>
+
+        <span class="cov0" title="0">return ttl, nil</span>
+}
+
+// EvictExpired removes expired keys from both caches
+func (f *FallbackCache) EvictExpired(ctx context.Context) (int, error) <span class="cov0" title="0">{
+        // Evict from primary
+        primaryCount, err := f.primary.EvictExpired(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                // Primary failed, evict from fallback
+                return f.fallback.EvictExpired(ctx)
+        }</span>
+
+        // Evict from fallback
+        <span class="cov0" title="0">fallbackCount, _ := f.fallback.EvictExpired(ctx)
+
+        return primaryCount + fallbackCount, nil</span>
+}
+
+// Size returns the total number of keys in both caches
+func (f *FallbackCache) Size(ctx context.Context) (int64, error) <span class="cov1" title="1">{
+        // Get size from primary
+        primarySize, err := f.primary.Size(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                // Primary failed, return fallback size
+                return f.fallback.Size(ctx)
+        }</span>
+
+        // Get size from fallback
+        <span class="cov1" title="1">fallbackSize, _ := f.fallback.Size(ctx)
+
+        return primarySize + fallbackSize, nil</span>
+}
+
+// StartBackgroundRefresh starts background refresh workers
+func (f *FallbackCache) StartBackgroundRefresh(ctx context.Context, refreshFunc RefreshFunc) error <span class="cov2" title="2">{
+        if !f.config.EnableFallback </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        // Start refresh workers
+        <span class="cov2" title="2">for i := 0; i &lt; f.config.RefreshWorkers; i++ </span><span class="cov4" title="4">{
+                f.wg.Add(1)
+                go f.refreshWorker(ctx, refreshFunc)
+        }</span>
+
+        // Start cleanup worker
+        <span class="cov2" title="2">f.wg.Add(1)
+        go f.cleanupWorker(ctx)
+
+        return nil</span>
+}
+
+// StopBackgroundRefresh stops background refresh workers
+func (f *FallbackCache) StopBackgroundRefresh() error <span class="cov4" title="3">{
+        f.mu.Lock()
+        defer f.mu.Unlock()
+
+        select </span>{
+        case &lt;-f.stopCh:<span class="cov1" title="1">
+                // Already closed
+                return nil</span>
+        default:<span class="cov2" title="2">
+                close(f.stopCh)</span>
+        }
+
+        <span class="cov2" title="2">f.wg.Wait()
+        return nil</span>
+}
+
+// refreshWorker processes refresh requests
+func (f *FallbackCache) refreshWorker(ctx context.Context, refreshFunc RefreshFunc) <span class="cov4" title="4">{
+        defer f.wg.Done()
+
+        ticker := time.NewTicker(f.config.RefreshInterval)
+        defer ticker.Stop()
+
+        for </span><span class="cov10" title="26">{
+                select </span>{
+                case key := &lt;-f.refreshCh:<span class="cov0" title="0">
+                        f.refreshKey(ctx, key, refreshFunc)</span>
+                case &lt;-ticker.C:<span class="cov9" title="22">
+                        f.refreshExpiringKeys(ctx, refreshFunc)</span>
+                case &lt;-f.stopCh:<span class="cov4" title="4">
+                        return</span>
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return</span>
+                }
+        }
+}
+
+// cleanupWorker periodically cleans up expired keys
+func (f *FallbackCache) cleanupWorker(ctx context.Context) <span class="cov2" title="2">{
+        defer f.wg.Done()
+
+        ticker := time.NewTicker(5 * time.Minute)
+        defer ticker.Stop()
+
+        for </span><span class="cov2" title="2">{
+                select </span>{
+                case &lt;-ticker.C:<span class="cov0" title="0">
+                        f.EvictExpired(ctx)</span>
+                case &lt;-f.stopCh:<span class="cov2" title="2">
+                        return</span>
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return</span>
+                }
+        }
+}
+
+// refreshKey refreshes a specific key
+func (f *FallbackCache) refreshKey(ctx context.Context, key string, refreshFunc RefreshFunc) <span class="cov0" title="0">{
+        value, ttl, err := refreshFunc(ctx, key)
+        if err != nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        <span class="cov0" title="0">_ = f.Set(ctx, key, value, ttl)</span>
+}
+
+// refreshExpiringKeys refreshes keys that are about to expire
+func (f *FallbackCache) refreshExpiringKeys(ctx context.Context, refreshFunc RefreshFunc) <span class="cov9" title="22">{
+        // Get keys that are about to expire (within 10% of TTL)
+        keys := f.fallback.getExpiringKeys(0.1) // 10% of TTL remaining
+
+        for _, key := range keys </span><span class="cov0" title="0">{
+                select </span>{
+                case f.refreshCh &lt;- key:<span class="cov0" title="0"></span>
+                default:<span class="cov0" title="0"></span>
+                        // Channel full, skip this key
+                }
+        }
+}
+
+// Ping checks both cache connections
+func (f *FallbackCache) Ping(ctx context.Context) error <span class="cov1" title="1">{
+        // Check primary
+        if err := f.primary.Ping(ctx); err != nil </span><span class="cov0" title="0">{
+                // Primary failed, check fallback
+                return f.fallback.Ping(ctx)
+        }</span>
+
+        <span class="cov1" title="1">return nil</span>
+}
+
+// Close closes both cache connections
+func (f *FallbackCache) Close() error <span class="cov1" title="1">{
+        // Stop background refresh
+        _ = f.StopBackgroundRefresh()
+
+        // Close primary
+        if err := f.primary.Close(); err != nil </span><span class="cov0" title="0">{
+                // Primary failed, close fallback
+                return f.fallback.Close()
+        }</span>
+
+        // Close fallback
+        <span class="cov1" title="1">_ = f.fallback.Close()
+        return nil</span>
+}
+
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package cache
+
+import (
+        "context"
+        "time"
+)
+
+// CacheEntry represents a cache entry with metadata
+type CacheEntry struct {
+        Value     interface{}
+        ExpiresAt time.Time
+        CreatedAt time.Time
+}
+
+// IsExpired checks if the cache entry has expired
+func (e *CacheEntry) IsExpired() bool <span class="cov10" title="56">{
+        return time.Now().After(e.ExpiresAt)
+}</span>
+
+// TTL returns the time until expiration
+func (e *CacheEntry) TTL() time.Duration <span class="cov8" title="24">{
+        return time.Until(e.ExpiresAt)
+}</span>
+
+// CacheConfig holds cache configuration
+type CacheConfig struct {
+        // Redis configuration
+        RedisURL      string
+        RedisPassword string
+        RedisDB       int
+
+        // TTL settings
+        DefaultTTL time.Duration
+        MaxTTL     time.Duration
+
+        // Eviction settings
+        MaxSize        int64
+        EvictionPolicy string // "lru", "lfu", "ttl"
+
+        // Background refresh settings
+        RefreshInterval time.Duration
+        RefreshWorkers  int
+
+        // Fallback settings
+        EnableFallback bool
+        FallbackTTL    time.Duration
+}
+
+// Cache defines the interface for cache operations
+type Cache interface {
+        // Basic operations
+        Get(ctx context.Context, key string) (interface{}, bool, error)
+        Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error
+        Delete(ctx context.Context, key string) error
+        Clear(ctx context.Context) error
+
+        // Batch operations
+        GetMultiple(ctx context.Context, keys []string) (map[string]interface{}, error)
+        SetMultiple(ctx context.Context, items map[string]interface{}, ttl time.Duration) error
+
+        // Metadata operations
+        GetWithMetadata(ctx context.Context, key string) (*CacheEntry, bool, error)
+        SetWithMetadata(ctx context.Context, key string, entry *CacheEntry) error
+
+        // TTL operations
+        Expire(ctx context.Context, key string, ttl time.Duration) error
+        TTL(ctx context.Context, key string) (time.Duration, error)
+
+        // Eviction operations
+        EvictExpired(ctx context.Context) (int, error)
+        Size(ctx context.Context) (int64, error)
+
+        // Background refresh
+        StartBackgroundRefresh(ctx context.Context, refreshFunc RefreshFunc) error
+        StopBackgroundRefresh() error
+
+        // Health check
+        Ping(ctx context.Context) error
+
+        // Close resources
+        Close() error
+}
+
+// RefreshFunc defines the function signature for background refresh
+type RefreshFunc func(ctx context.Context, key string) (interface{}, time.Duration, error)
+
+// DefaultCacheConfig returns sensible default configuration
+func DefaultCacheConfig() CacheConfig <span class="cov6" title="10">{
+        return CacheConfig{
+                RedisURL:        "redis://localhost:6379",
+                RedisPassword:   "",
+                RedisDB:         0,
+                DefaultTTL:      60 * time.Second,
+                MaxTTL:          24 * time.Hour,
+                MaxSize:         10000,
+                EvictionPolicy:  "lru",
+                RefreshInterval: 30 * time.Second,
+                RefreshWorkers:  5,
+                EnableFallback:  true,
+                FallbackTTL:     5 * time.Minute,
+        }
+}</span>
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package cache
+
+import (
+        "context"
+        "time"
+)
+
+// LegacyCache provides backward compatibility with the old cache interface
+type LegacyCache struct {
+        cache Cache
+}
+
+// NewLegacyCache creates a legacy cache wrapper
+func NewLegacyCache(cache Cache) *LegacyCache <span class="cov1" title="1">{
+        return &amp;LegacyCache{cache: cache}
+}</span>
+
+// Get implements the old cache interface
+func (l *LegacyCache) Get(key string) (float64, bool) <span class="cov10" title="2">{
+        ctx := context.Background()
+        value, found, err := l.cache.Get(ctx, key)
+        if err != nil || !found </span><span class="cov1" title="1">{
+                return 0, false
+        }</span>
+        <span class="cov1" title="1">if price, ok := value.(float64); ok </span><span class="cov1" title="1">{
+                return price, true
+        }</span>
+        <span class="cov0" title="0">return 0, false</span>
+}
+
+// Set implements the old cache interface
+func (l *LegacyCache) Set(key string, value float64) <span class="cov1" title="1">{
+        ctx := context.Background()
+        _ = l.cache.Set(ctx, key, value, 60*time.Second)
+}</span>
+
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package cache
+
+import (
+        "context"
+        "fmt"
+        "sort"
+        "sync"
+        "time"
+)
+
+// InMemoryCache implements Cache interface using in-memory storage
+type InMemoryCache struct {
+        config CacheConfig
+        data   map[string]*CacheEntry
+        mu     sync.RWMutex
+        stats  *CacheStats
+}
+
+// CacheStats holds cache statistics
+type CacheStats struct {
+        Hits      int64
+        Misses    int64
+        Evictions int64
+        Refreshes int64
+        mu        sync.RWMutex
+}
+
+// NewInMemoryCache creates a new in-memory cache instance
+func NewInMemoryCache(config CacheConfig) *InMemoryCache <span class="cov7" title="10">{
+        return &amp;InMemoryCache{
+                config: config,
+                data:   make(map[string]*CacheEntry),
+                stats:  &amp;CacheStats{},
+        }
+}</span>
+
+// Get retrieves a value from cache
+func (m *InMemoryCache) Get(ctx context.Context, key string) (interface{}, bool, error) <span class="cov9" title="24">{
+        m.mu.RLock()
+        entry, exists := m.data[key]
+        m.mu.RUnlock()
+
+        if !exists </span><span class="cov5" title="6">{
+                m.stats.recordMiss()
+                return nil, false, nil
+        }</span>
+
+        <span class="cov8" title="18">if entry.IsExpired() </span><span class="cov4" title="3">{
+                m.mu.Lock()
+                delete(m.data, key)
+                m.mu.Unlock()
+                m.stats.recordMiss()
+                return nil, false, nil
+        }</span>
+
+        <span class="cov8" title="15">m.stats.recordHit()
+        return entry.Value, true, nil</span>
+}
+
+// Set stores a value in cache with TTL
+func (m *InMemoryCache) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error <span class="cov10" title="26">{
+        if ttl &lt;= 0 </span><span class="cov0" title="0">{
+                ttl = m.config.DefaultTTL
+        }</span>
+        <span class="cov10" title="26">if ttl &gt; m.config.MaxTTL </span><span class="cov0" title="0">{
+                ttl = m.config.MaxTTL
+        }</span>
+
+        <span class="cov10" title="26">entry := &amp;CacheEntry{
+                Value:     value,
+                ExpiresAt: time.Now().Add(ttl),
+                CreatedAt: time.Now(),
+        }
+
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        // Check if we need to evict
+        if int64(len(m.data)) &gt;= m.config.MaxSize </span><span class="cov1" title="1">{
+                m.evictLRU()
+        }</span>
+
+        <span class="cov10" title="26">m.data[key] = entry
+        return nil</span>
+}
+
+// Delete removes a key from cache
+func (m *InMemoryCache) Delete(ctx context.Context, key string) error <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        delete(m.data, key)
+        return nil
+}</span>
+
+// Clear removes all keys from cache
+func (m *InMemoryCache) Clear(ctx context.Context) error <span class="cov2" title="2">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        m.data = make(map[string]*CacheEntry)
+        return nil
+}</span>
+
+// GetMultiple retrieves multiple values from cache
+func (m *InMemoryCache) GetMultiple(ctx context.Context, keys []string) (map[string]interface{}, error) <span class="cov1" title="1">{
+        if len(keys) == 0 </span><span class="cov0" title="0">{
+                return make(map[string]interface{}), nil
+        }</span>
+
+        <span class="cov1" title="1">result := make(map[string]interface{})
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        for _, key := range keys </span><span class="cov4" title="4">{
+                if entry, exists := m.data[key]; exists &amp;&amp; !entry.IsExpired() </span><span class="cov4" title="3">{
+                        result[key] = entry.Value
+                }</span>
+        }
+
+        <span class="cov1" title="1">return result, nil</span>
+}
+
+// SetMultiple stores multiple values in cache
+func (m *InMemoryCache) SetMultiple(ctx context.Context, items map[string]interface{}, ttl time.Duration) error <span class="cov1" title="1">{
+        if len(items) == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov1" title="1">m.mu.Lock()
+        defer m.mu.Unlock()
+
+        // Check if we need to evict
+        if int64(len(m.data)+len(items)) &gt;= m.config.MaxSize </span><span class="cov0" title="0">{
+                m.evictLRU()
+        }</span>
+
+        <span class="cov1" title="1">for key, value := range items </span><span class="cov4" title="3">{
+                entry := &amp;CacheEntry{
+                        Value:     value,
+                        ExpiresAt: time.Now().Add(ttl),
+                        CreatedAt: time.Now(),
+                }
+                m.data[key] = entry
+        }</span>
+
+        <span class="cov1" title="1">return nil</span>
+}
+
+// GetWithMetadata retrieves a value with metadata
+func (m *InMemoryCache) GetWithMetadata(ctx context.Context, key string) (*CacheEntry, bool, error) <span class="cov2" title="2">{
+        m.mu.RLock()
+        entry, exists := m.data[key]
+        m.mu.RUnlock()
+
+        if !exists </span><span class="cov0" title="0">{
+                m.stats.recordMiss()
+                return nil, false, nil
+        }</span>
+
+        <span class="cov2" title="2">if entry.IsExpired() </span><span class="cov1" title="1">{
+                m.mu.Lock()
+                delete(m.data, key)
+                m.mu.Unlock()
+                m.stats.recordMiss()
+                return nil, false, nil
+        }</span>
+
+        <span class="cov1" title="1">m.stats.recordHit()
+        return entry, true, nil</span>
+}
+
+// SetWithMetadata stores a value with metadata
+func (m *InMemoryCache) SetWithMetadata(ctx context.Context, key string, entry *CacheEntry) error <span class="cov0" title="0">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        // Check if we need to evict
+        if int64(len(m.data)) &gt;= m.config.MaxSize </span><span class="cov0" title="0">{
+                m.evictLRU()
+        }</span>
+
+        <span class="cov0" title="0">m.data[key] = entry
+        return nil</span>
+}
+
+// Expire sets expiration for a key
+func (m *InMemoryCache) Expire(ctx context.Context, key string, ttl time.Duration) error <span class="cov1" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        if entry, exists := m.data[key]; exists </span><span class="cov1" title="1">{
+                entry.ExpiresAt = time.Now().Add(ttl)
+        }</span>
+
+        <span class="cov1" title="1">return nil</span>
+}
+
+// TTL returns time to live for a key
+func (m *InMemoryCache) TTL(ctx context.Context, key string) (time.Duration, error) <span class="cov1" title="1">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        if entry, exists := m.data[key]; exists </span><span class="cov1" title="1">{
+                if entry.IsExpired() </span><span class="cov0" title="0">{
+                        return 0, nil
+                }</span>
+                <span class="cov1" title="1">return entry.TTL(), nil</span>
+        }
+
+        <span class="cov0" title="0">return 0, fmt.Errorf("key not found")</span>
+}
+
+// EvictExpired removes expired keys
+func (m *InMemoryCache) EvictExpired(ctx context.Context) (int, error) <span class="cov1" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        var expiredKeys []string
+        for key, entry := range m.data </span><span class="cov4" title="4">{
+                if entry.IsExpired() </span><span class="cov2" title="2">{
+                        expiredKeys = append(expiredKeys, key)
+                }</span>
+        }
+
+        <span class="cov1" title="1">for _, key := range expiredKeys </span><span class="cov2" title="2">{
+                delete(m.data, key)
+        }</span>
+
+        <span class="cov1" title="1">m.stats.recordEvictions(int64(len(expiredKeys)))
+        return len(expiredKeys), nil</span>
+}
+
+// Size returns the number of keys in cache
+func (m *InMemoryCache) Size(ctx context.Context) (int64, error) <span class="cov4" title="3">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        return int64(len(m.data)), nil
+}</span>
+
+// StartBackgroundRefresh starts background refresh workers
+func (m *InMemoryCache) StartBackgroundRefresh(ctx context.Context, refreshFunc RefreshFunc) error <span class="cov0" title="0">{
+        // In-memory cache doesn't need background refresh
+        // This is handled by the fallback cache
+        return nil
+}</span>
+
+// StopBackgroundRefresh stops background refresh workers
+func (m *InMemoryCache) StopBackgroundRefresh() error <span class="cov0" title="0">{
+        return nil
+}</span>
+
+// Ping checks cache health
+func (m *InMemoryCache) Ping(ctx context.Context) error <span class="cov0" title="0">{
+        return nil
+}</span>
+
+// Close closes cache resources
+func (m *InMemoryCache) Close() error <span class="cov1" title="1">{
+        return nil
+}</span>
+
+// evictLRU evicts least recently used entries
+func (m *InMemoryCache) evictLRU() <span class="cov1" title="1">{
+        if len(m.data) == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        // Sort entries by creation time (LRU)
+        <span class="cov1" title="1">type entryWithKey struct {
+                key   string
+                entry *CacheEntry
+        }
+
+        entries := make([]entryWithKey, 0, len(m.data))
+        for key, entry := range m.data </span><span class="cov5" title="5">{
+                entries = append(entries, entryWithKey{key, entry})
+        }</span>
+
+        <span class="cov1" title="1">sort.Slice(entries, func(i, j int) bool </span><span class="cov4" title="4">{
+                return entries[i].entry.CreatedAt.Before(entries[j].entry.CreatedAt)
+        }</span>)
+
+        // Evict 10% of entries
+        <span class="cov1" title="1">evictCount := len(entries) / 10
+        if evictCount == 0 </span><span class="cov1" title="1">{
+                evictCount = 1
+        }</span>
+
+        <span class="cov1" title="1">for i := 0; i &lt; evictCount; i++ </span><span class="cov1" title="1">{
+                delete(m.data, entries[i].key)
+        }</span>
+
+        <span class="cov1" title="1">m.stats.recordEvictions(int64(evictCount))</span>
+}
+
+// getExpiringKeys returns keys that are about to expire
+func (m *InMemoryCache) getExpiringKeys(threshold float64) []string <span class="cov9" title="22">{
+        m.mu.RLock()
+        defer m.mu.RUnlock()
+
+        var expiringKeys []string
+
+        for key, entry := range m.data </span><span class="cov9" title="22">{
+                if entry.IsExpired() </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                <span class="cov9" title="22">ttl := entry.TTL()
+                totalTTL := entry.ExpiresAt.Sub(entry.CreatedAt)
+                remainingRatio := float64(ttl) / float64(totalTTL)
+
+                if remainingRatio &lt;= threshold </span><span class="cov0" title="0">{
+                        expiringKeys = append(expiringKeys, key)
+                }</span>
+        }
+
+        <span class="cov9" title="22">return expiringKeys</span>
+}
+
+// GetStats returns cache statistics
+func (m *InMemoryCache) GetStats() *CacheStats <span class="cov1" title="1">{
+        return m.stats
+}</span>
+
+// recordHit records a cache hit
+func (s *CacheStats) recordHit() <span class="cov8" title="16">{
+        s.mu.Lock()
+        defer s.mu.Unlock()
+        s.Hits++
+}</span>
+
+// recordMiss records a cache miss
+func (s *CacheStats) recordMiss() <span class="cov7" title="10">{
+        s.mu.Lock()
+        defer s.mu.Unlock()
+        s.Misses++
+}</span>
+
+// recordEvictions records cache evictions
+func (s *CacheStats) recordEvictions(count int64) <span class="cov2" title="2">{
+        s.mu.Lock()
+        defer s.mu.Unlock()
+        s.Evictions += count
+}</span>
+
+// recordRefresh records a cache refresh
+func (s *CacheStats) recordRefresh() <span class="cov0" title="0">{
+        s.mu.Lock()
+        defer s.mu.Unlock()
+        s.Refreshes++
+}</span>
+
+// HitRate returns the cache hit rate
+func (s *CacheStats) HitRate() float64 <span class="cov1" title="1">{
+        s.mu.RLock()
+        defer s.mu.RUnlock()
+
+        total := s.Hits + s.Misses
+        if total == 0 </span><span class="cov0" title="0">{
+                return 0
+        }</span>
+
+        <span class="cov1" title="1">return float64(s.Hits) / float64(total)</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package cache
+
+import (
+        "context"
+        "encoding/json"
+        "fmt"
+        "net/url"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/redis/go-redis/v9"
+)
+
+// RedisCache implements Cache interface using Redis
+type RedisCache struct {
+        client *redis.Client
+        config CacheConfig
+}
+
+// NewRedisCache creates a new Redis cache instance
+func NewRedisCache(config CacheConfig) (*RedisCache, error) <span class="cov3" title="2">{
+        // Parse Redis URL
+        addr, password, db, err := parseRedisURL(config.RedisURL, config.RedisPassword, config.RedisDB)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
+        }</span>
+
+        <span class="cov3" title="2">opts := &amp;redis.Options{
+                Addr:     addr,
+                Password: password,
+                DB:       db,
+        }
+
+        client := redis.NewClient(opts)
+
+        // Test connection
+        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
+
+        if err := client.Ping(ctx).Err(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+        }</span>
+
+        <span class="cov3" title="2">return &amp;RedisCache{
+                client: client,
+                config: config,
+        }, nil</span>
+}
+
+// Get retrieves a value from cache
+func (r *RedisCache) Get(ctx context.Context, key string) (interface{}, bool, error) <span class="cov5" title="3">{
+        val, err := r.client.Get(ctx, key).Result()
+        if err != nil </span><span class="cov1" title="1">{
+                if err == redis.Nil </span><span class="cov1" title="1">{
+                        return nil, false, nil
+                }</span>
+                <span class="cov0" title="0">return nil, false, err</span>
+        }
+
+        <span class="cov3" title="2">var entry CacheEntry
+        if err := json.Unmarshal([]byte(val), &amp;entry); err != nil </span><span class="cov0" title="0">{
+                return nil, false, fmt.Errorf("failed to unmarshal cache entry: %w", err)
+        }</span>
+
+        <span class="cov3" title="2">if entry.IsExpired() </span><span class="cov0" title="0">{
+                // Clean up expired entry
+                _ = r.client.Del(ctx, key)
+                return nil, false, nil
+        }</span>
+
+        <span class="cov3" title="2">return entry.Value, true, nil</span>
+}
+
+// Set stores a value in cache with TTL
+func (r *RedisCache) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error <span class="cov7" title="5">{
+        if ttl &lt;= 0 </span><span class="cov0" title="0">{
+                ttl = r.config.DefaultTTL
+        }</span>
+        <span class="cov7" title="5">if ttl &gt; r.config.MaxTTL </span><span class="cov0" title="0">{
+                ttl = r.config.MaxTTL
+        }</span>
+
+        <span class="cov7" title="5">entry := &amp;CacheEntry{
+                Value:     value,
+                ExpiresAt: time.Now().Add(ttl),
+                CreatedAt: time.Now(),
+        }
+
+        data, err := json.Marshal(entry)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to marshal cache entry: %w", err)
+        }</span>
+
+        <span class="cov7" title="5">return r.client.Set(ctx, key, data, ttl).Err()</span>
+}
+
+// Delete removes a key from cache
+func (r *RedisCache) Delete(ctx context.Context, key string) error <span class="cov0" title="0">{
+        return r.client.Del(ctx, key).Err()
+}</span>
+
+// Clear removes all keys from cache
+func (r *RedisCache) Clear(ctx context.Context) error <span class="cov5" title="3">{
+        return r.client.FlushDB(ctx).Err()
+}</span>
+
+// GetMultiple retrieves multiple values from cache
+func (r *RedisCache) GetMultiple(ctx context.Context, keys []string) (map[string]interface{}, error) <span class="cov1" title="1">{
+        if len(keys) == 0 </span><span class="cov0" title="0">{
+                return make(map[string]interface{}), nil
+        }</span>
+
+        <span class="cov1" title="1">vals, err := r.client.MGet(ctx, keys...).Result()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov1" title="1">result := make(map[string]interface{})
+        for i, val := range vals </span><span class="cov6" title="4">{
+                if val == nil </span><span class="cov1" title="1">{
+                        continue</span>
+                }
+
+                <span class="cov5" title="3">var entry CacheEntry
+                if err := json.Unmarshal([]byte(val.(string)), &amp;entry); err != nil </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                <span class="cov5" title="3">if !entry.IsExpired() </span><span class="cov5" title="3">{
+                        result[keys[i]] = entry.Value
+                }</span>
+        }
+
+        <span class="cov1" title="1">return result, nil</span>
+}
+
+// SetMultiple stores multiple values in cache
+func (r *RedisCache) SetMultiple(ctx context.Context, items map[string]interface{}, ttl time.Duration) error <span class="cov1" title="1">{
+        if len(items) == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov1" title="1">pipe := r.client.Pipeline()
+        for key, value := range items </span><span class="cov5" title="3">{
+                entry := &amp;CacheEntry{
+                        Value:     value,
+                        ExpiresAt: time.Now().Add(ttl),
+                        CreatedAt: time.Now(),
+                }
+
+                data, err := json.Marshal(entry)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to marshal cache entry for key %s: %w", key, err)
+                }</span>
+
+                <span class="cov5" title="3">pipe.Set(ctx, key, data, ttl)</span>
+        }
+
+        <span class="cov1" title="1">_, err := pipe.Exec(ctx)
+        return err</span>
+}
+
+// GetWithMetadata retrieves a value with metadata
+func (r *RedisCache) GetWithMetadata(ctx context.Context, key string) (*CacheEntry, bool, error) <span class="cov1" title="1">{
+        val, err := r.client.Get(ctx, key).Result()
+        if err != nil </span><span class="cov0" title="0">{
+                if err == redis.Nil </span><span class="cov0" title="0">{
+                        return nil, false, nil
+                }</span>
+                <span class="cov0" title="0">return nil, false, err</span>
+        }
+
+        <span class="cov1" title="1">var entry CacheEntry
+        if err := json.Unmarshal([]byte(val), &amp;entry); err != nil </span><span class="cov0" title="0">{
+                return nil, false, fmt.Errorf("failed to unmarshal cache entry: %w", err)
+        }</span>
+
+        <span class="cov1" title="1">if entry.IsExpired() </span><span class="cov0" title="0">{
+                _ = r.client.Del(ctx, key)
+                return nil, false, nil
+        }</span>
+
+        <span class="cov1" title="1">return &amp;entry, true, nil</span>
+}
+
+// SetWithMetadata stores a value with metadata
+func (r *RedisCache) SetWithMetadata(ctx context.Context, key string, entry *CacheEntry) error <span class="cov1" title="1">{
+        data, err := json.Marshal(entry)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to marshal cache entry: %w", err)
+        }</span>
+
+        <span class="cov1" title="1">ttl := entry.TTL()
+        if ttl &lt;= 0 </span><span class="cov0" title="0">{
+                ttl = r.config.DefaultTTL
+        }</span>
+
+        <span class="cov1" title="1">return r.client.Set(ctx, key, data, ttl).Err()</span>
+}
+
+// Expire sets expiration for a key
+func (r *RedisCache) Expire(ctx context.Context, key string, ttl time.Duration) error <span class="cov1" title="1">{
+        return r.client.Expire(ctx, key, ttl).Err()
+}</span>
+
+// TTL returns time to live for a key
+func (r *RedisCache) TTL(ctx context.Context, key string) (time.Duration, error) <span class="cov1" title="1">{
+        return r.client.TTL(ctx, key).Result()
+}</span>
+
+// EvictExpired removes expired keys
+func (r *RedisCache) EvictExpired(ctx context.Context) (int, error) <span class="cov0" title="0">{
+        // Redis handles TTL automatically, but we can scan for expired keys
+        keys, err := r.client.Keys(ctx, "*").Result()
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+
+        <span class="cov0" title="0">var expiredCount int
+        pipe := r.client.Pipeline()
+        for _, key := range keys </span><span class="cov0" title="0">{
+                entry, exists, err := r.GetWithMetadata(ctx, key)
+                if err != nil </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov0" title="0">if !exists || entry.IsExpired() </span><span class="cov0" title="0">{
+                        pipe.Del(ctx, key)
+                        expiredCount++
+                }</span>
+        }
+
+        <span class="cov0" title="0">if expiredCount &gt; 0 </span><span class="cov0" title="0">{
+                _, err = pipe.Exec(ctx)
+        }</span>
+
+        <span class="cov0" title="0">return expiredCount, err</span>
+}
+
+// Size returns the number of keys in cache
+func (r *RedisCache) Size(ctx context.Context) (int64, error) <span class="cov5" title="3">{
+        return r.client.DBSize(ctx).Result()
+}</span>
+
+// StartBackgroundRefresh starts background refresh workers
+func (r *RedisCache) StartBackgroundRefresh(ctx context.Context, refreshFunc RefreshFunc) error <span class="cov0" title="0">{
+        // Background refresh is handled by the fallback cache
+        // Redis doesn't need background refresh as it handles TTL automatically
+        return nil
+}</span>
+
+// StopBackgroundRefresh stops background refresh workers
+func (r *RedisCache) StopBackgroundRefresh() error <span class="cov0" title="0">{
+        return nil
+}</span>
+
+// Ping checks Redis connection
+func (r *RedisCache) Ping(ctx context.Context) error <span class="cov3" title="2">{
+        return r.client.Ping(ctx).Err()
+}</span>
+
+// Close closes Redis connection
+func (r *RedisCache) Close() error <span class="cov3" title="2">{
+        return r.client.Close()
+}</span>
+
+// parseRedisURL parses a Redis URL and extracts connection parameters
+func parseRedisURL(redisURL, defaultPassword string, defaultDB int) (addr, password string, db int, err error) <span class="cov10" title="9">{
+        // Handle simple host:port format
+        if !strings.Contains(redisURL, "://") </span><span class="cov1" title="1">{
+                return redisURL, defaultPassword, defaultDB, nil
+        }</span>
+
+        // Parse URL
+        <span class="cov9" title="8">u, err := url.Parse(redisURL)
+        if err != nil </span><span class="cov1" title="1">{
+                return "", "", 0, fmt.Errorf("invalid Redis URL: %w", err)
+        }</span>
+
+        // Extract address
+        <span class="cov8" title="7">addr = u.Host
+        if addr == "" </span><span class="cov0" title="0">{
+                return "", "", 0, fmt.Errorf("missing host in Redis URL")
+        }</span>
+
+        // Extract password
+        <span class="cov8" title="7">password = defaultPassword
+        if u.User != nil </span><span class="cov3" title="2">{
+                if pass, ok := u.User.Password(); ok &amp;&amp; pass != "" </span><span class="cov3" title="2">{
+                        password = pass
+                }</span>
+        }
+
+        // Extract database number
+        <span class="cov8" title="7">db = defaultDB
+        if u.Path != "" &amp;&amp; u.Path != "/" </span><span class="cov3" title="2">{
+                dbStr := strings.TrimPrefix(u.Path, "/")
+                if dbStr != "" </span><span class="cov3" title="2">{
+                        if parsedDB, err := strconv.Atoi(dbStr); err == nil </span><span class="cov3" title="2">{
+                                db = parsedDB
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="7">return addr, password, db, nil</span>
+}
+
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package health
+
+import (
+        "context"
+        "time"
+)
+
+type Status string
+
+const (
+        StatusHealthy   Status = "healthy"
+        StatusUnhealthy Status = "unhealthy"
+)
+
+type CheckResult struct {
+        Name   string `json:"name"`
+        Status Status `json:"status"`
+        Error  string `json:"error,omitempty"`
+}
+
+type Response struct {
+        Status Status        `json:"status"`
+        Checks []CheckResult `json:"checks,omitempty"`
+}
+
+type Check interface {
+        Check(ctx context.Context) CheckResult
+}
+
+type Checker struct {
+        checks []Check
+}
+
+func NewChecker() *Checker <span class="cov6" title="2">{
+        return &amp;Checker{checks: make([]Check, 0)}
+}</span>
+
+func (c *Checker) AddCheck(check Check) <span class="cov6" title="2">{
+        c.checks = append(c.checks, check)
+}</span>
+
+func (c *Checker) HealthCheck(ctx context.Context) Response <span class="cov1" title="1">{
+        return Response{Status: StatusHealthy}
+}</span>
+
+func (c *Checker) ReadinessCheck(ctx context.Context) Response <span class="cov10" title="3">{
+        if len(c.checks) == 0 </span><span class="cov1" title="1">{
+                return Response{Status: StatusHealthy}
+        }</span>
+
+        <span class="cov6" title="2">results := make([]CheckResult, 0, len(c.checks))
+        overallStatus := StatusHealthy
+
+        for _, check := range c.checks </span><span class="cov10" title="3">{
+                result := check.Check(ctx)
+                results = append(results, result)
+                if result.Status == StatusUnhealthy </span><span class="cov1" title="1">{
+                        overallStatus = StatusUnhealthy
+                }</span>
+        }
+
+        <span class="cov6" title="2">return Response{
+                Status: overallStatus,
+                Checks: results,
+        }</span>
+}
+
+type CacheCheck struct {
+        cache interface {
+                Get(key string) (float64, bool)
+        }
+}
+
+func NewCacheCheck(cache interface {
+        Get(key string) (float64, bool)
+}) *CacheCheck <span class="cov0" title="0">{
+        return &amp;CacheCheck{cache: cache}
+}</span>
+
+func (c *CacheCheck) Check(ctx context.Context) CheckResult <span class="cov0" title="0">{
+        if c.cache == nil </span><span class="cov0" title="0">{
+                return CheckResult{
+                        Name:   "cache",
+                        Status: StatusUnhealthy,
+                        Error:  "cache is nil",
+                }
+        }</span>
+        <span class="cov0" title="0">return CheckResult{
+                Name:   "cache",
+                Status: StatusHealthy,
+        }</span>
+}
+
+type KrakenCheck struct {
+        client interface {
+                GetTickerPrices(ctx context.Context, symbols []string) (map[string]float64, error)
+        }
+}
+
+func NewKrakenCheck(client interface {
+        GetTickerPrices(ctx context.Context, symbols []string) (map[string]float64, error)
+}) *KrakenCheck <span class="cov6" title="2">{
+        return &amp;KrakenCheck{client: client}
+}</span>
+
+func (k *KrakenCheck) Check(ctx context.Context) CheckResult <span class="cov6" title="2">{
+        if k.client == nil </span><span class="cov0" title="0">{
+                return CheckResult{
+                        Name:   "kraken_api",
+                        Status: StatusUnhealthy,
+                        Error:  "kraken client is nil",
+                }
+        }</span>
+
+        <span class="cov6" title="2">checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+        defer cancel()
+
+        _, err := k.client.GetTickerPrices(checkCtx, []string{"XBTUSD"})
+        if err != nil </span><span class="cov1" title="1">{
+                return CheckResult{
+                        Name:   "kraken_api",
+                        Status: StatusUnhealthy,
+                        Error:  "kraken API health check failed: " + err.Error(),
+                }
+        }</span>
+
+        <span class="cov1" title="1">return CheckResult{
+                Name:   "kraken_api",
+                Status: StatusHealthy,
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package health
+
+import (
+        "context"
+)
+
+// LegacyCacheCheck provides health check for legacy cache interface
+type LegacyCacheCheck struct {
+        cache interface {
+                Get(key string) (float64, bool)
+                Set(key string, value float64)
+        }
+}
+
+// NewLegacyCacheCheck creates a new legacy cache health check
+func NewLegacyCacheCheck(cache interface {
+        Get(key string) (float64, bool)
+        Set(key string, value float64)
+}) *LegacyCacheCheck <span class="cov10" title="2">{
+        return &amp;LegacyCacheCheck{cache: cache}
+}</span>
+
+// Check performs health check on legacy cache
+func (c *LegacyCacheCheck) Check(ctx context.Context) CheckResult <span class="cov10" title="2">{
+        if c.cache == nil </span><span class="cov1" title="1">{
+                return CheckResult{
+                        Name:   "legacy_cache",
+                        Status: StatusUnhealthy,
+                        Error:  "cache is nil",
+                }
+        }</span>
+
+        // Test write and read operations
+        <span class="cov1" title="1">testKey := "health_check"
+        testValue := 123.45
+
+        // Try to write test data
+        c.cache.Set(testKey, testValue)
+
+        // Try to read test data back
+        value, found := c.cache.Get(testKey)
+        if !found || value != testValue </span><span class="cov0" title="0">{
+                return CheckResult{
+                        Name:   "legacy_cache",
+                        Status: StatusUnhealthy,
+                        Error:  "cache read/write test failed",
+                }
+        }</span>
+
+        <span class="cov1" title="1">return CheckResult{
+                Name:   "legacy_cache",
+                Status: StatusHealthy,
+        }</span>
+}
+
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package httpserver
+
+import (
+        "context"
+        "encoding/json"
+        "errors"
+        "log"
+        "net/http"
+        "os"
+        "path/filepath"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/Zmey56/go-exercise/internal/health"
+        "github.com/Zmey56/go-exercise/internal/ltp"
+        "github.com/Zmey56/go-exercise/internal/metrics"
+        "github.com/Zmey56/go-exercise/internal/ratelimit"
+        "github.com/Zmey56/go-exercise/internal/resp"
+        "github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+// LTPProvider — minimal interface for the service
+// (easier to mock in tests if needed)
+type LTPProvider interface {
+        GetLTP(ctx context.Context, pairs []string) ([]ltp.Quote, error)
+}
+
+type Server struct {
+        addr          string
+        svc           LTPProvider
+        http          *http.Server
+        healthChecker *health.Checker
+        rateLimiter   *ratelimit.RateLimiter
+}
+
+func New(addr string, svc LTPProvider) *Server <span class="cov6" title="13">{
+        mux := http.NewServeMux()
+        s := &amp;Server{
+                addr:          addr,
+                svc:           svc,
+                healthChecker: health.NewChecker(),
+                rateLimiter:   ratelimit.NewRateLimiter(ratelimit.DefaultConfig()),
+        }
+
+        // API endpoints
+        mux.HandleFunc("/api/v1/ltp", s.handleLTP)
+
+        // Health endpoints
+        mux.HandleFunc("/health", s.handleHealth)
+        mux.HandleFunc("/ready", s.handleReady)
+
+        // OpenAPI documentation
+        mux.HandleFunc("/openapi.yaml", s.handleOpenAPI)
+        mux.HandleFunc("/docs", s.handleSwaggerUI)
+
+        // Metrics endpoint
+        mux.Handle("/metrics", promhttp.Handler())
+
+        // Add middleware: CORS, logging, recovery, metrics, rate limiting
+        handler := cors(logging(s.rateLimitMiddleware(metricsMiddleware(recovery(mux)))))
+
+        s.http = &amp;http.Server{
+                Addr:              addr,
+                Handler:           handler,
+                ReadHeaderTimeout: 5 * time.Second,
+                ReadTimeout:       10 * time.Second,
+                WriteTimeout:      15 * time.Second,
+                IdleTimeout:       60 * time.Second,
+        }
+        return s
+}</span>
+
+func (s *Server) Start() error <span class="cov0" title="0">{
+        return s.http.ListenAndServe()
+}</span>
+
+func (s *Server) Shutdown(ctx context.Context) error <span class="cov0" title="0">{
+        s.rateLimiter.Stop()
+        return s.http.Shutdown(ctx)
+}</span>
+
+func (s *Server) AddHealthCheck(check health.Check) <span class="cov0" title="0">{
+        s.healthChecker.AddCheck(check)
+}</span>
+
+func (s *Server) handleLTP(w http.ResponseWriter, r *http.Request) <span class="cov6" title="10">{
+        // Support only GET requests
+        if r.Method != http.MethodGet </span><span class="cov1" title="1">{
+                resp.JSON(w, http.StatusMethodNotAllowed, resp.Error{Message: "method not allowed"})
+                return
+        }</span>
+
+        // Support ?pair=BTC/USD OR ?pairs=BTC/USD,BTC/EUR
+        // If parameters are not specified, return all supported pairs
+        <span class="cov5" title="9">q := r.URL.Query()
+        var pairs []string
+
+        if p := q.Get("pair"); p != "" </span><span class="cov4" title="4">{
+                pairs = []string{p}
+        }</span> else<span class="cov4" title="5"> if ps := q.Get("pairs"); ps != "" </span><span class="cov2" title="2">{
+                parts := strings.Split(ps, ",")
+                for _, p := range parts </span><span class="cov4" title="4">{
+                        p = strings.TrimSpace(p)
+                        if p != "" </span><span class="cov4" title="4">{
+                                pairs = append(pairs, p)
+                        }</span>
+                }
+        } else<span class="cov3" title="3"> {
+                // If parameters are not specified, return all supported pairs
+                pairs = []string{"BTC/USD", "BTC/CHF", "BTC/EUR"}
+        }</span>
+
+        <span class="cov5" title="9">if len(pairs) == 0 </span><span class="cov0" title="0">{
+                resp.JSON(w, http.StatusBadRequest, resp.Error{Message: "query param 'pair' or 'pairs' is required"})
+                return
+        }</span>
+
+        <span class="cov5" title="9">ctx := r.Context()
+        quotes, err := s.svc.GetLTP(ctx, pairs)
+        if err != nil </span><span class="cov2" title="2">{
+                var herr *ltp.HandlerError
+                if errors.As(err, &amp;herr) </span><span class="cov1" title="1">{
+                        resp.JSON(w, herr.Code, resp.Error{Message: herr.Error()})
+                        return
+                }</span>
+                <span class="cov1" title="1">log.Printf("svc error: %v", err)
+                resp.JSON(w, http.StatusInternalServerError, resp.Error{Message: "internal error"})
+                return</span>
+        }
+
+        // Response format {"ltp": [{"pair":"BTC/CHF","amount":...}, ...]}
+        <span class="cov5" title="7">out := struct {
+                LTP []ltp.Quote `json:"ltp"`
+        }{LTP: quotes}
+
+        w.Header().Set("Content-Type", "application/json")
+        _ = json.NewEncoder(w).Encode(out)</span>
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) <span class="cov4" title="5">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                resp.JSON(w, http.StatusMethodNotAllowed, resp.Error{Message: "method not allowed"})
+                return
+        }</span>
+
+        <span class="cov4" title="5">response := s.healthChecker.HealthCheck(r.Context())
+        statusCode := http.StatusOK
+        if response.Status == health.StatusUnhealthy </span><span class="cov0" title="0">{
+                statusCode = http.StatusServiceUnavailable
+        }</span>
+
+        <span class="cov4" title="5">w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(statusCode)
+        _ = json.NewEncoder(w).Encode(response)</span>
+}
+
+func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) <span class="cov4" title="5">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                resp.JSON(w, http.StatusMethodNotAllowed, resp.Error{Message: "method not allowed"})
+                return
+        }</span>
+
+        <span class="cov4" title="5">response := s.healthChecker.ReadinessCheck(r.Context())
+        statusCode := http.StatusOK
+        if response.Status == health.StatusUnhealthy </span><span class="cov0" title="0">{
+                statusCode = http.StatusServiceUnavailable
+        }</span>
+
+        <span class="cov4" title="5">w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(statusCode)
+        _ = json.NewEncoder(w).Encode(response)</span>
+}
+
+// cors adds CORS headers
+func cors(next http.Handler) http.Handler <span class="cov6" title="13">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov4" title="4">{
+                w.Header().Set("Access-Control-Allow-Origin", "*")
+                w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+                w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+                if r.Method == http.MethodOptions </span><span class="cov1" title="1">{
+                        w.WriteHeader(http.StatusOK)
+                        return
+                }</span>
+
+                <span class="cov3" title="3">next.ServeHTTP(w, r)</span>
+        })
+}
+
+// logging adds request logging
+func logging(next http.Handler) http.Handler <span class="cov6" title="13">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov3" title="3">{
+                start := time.Now()
+                next.ServeHTTP(w, r)
+                log.Printf("%s %s %s", r.Method, r.URL.String(), time.Since(start))
+        }</span>)
+}
+
+// recovery adds panic handling
+func recovery(next http.Handler) http.Handler <span class="cov6" title="13">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov3" title="3">{
+                defer func() </span><span class="cov3" title="3">{
+                        if err := recover(); err != nil </span><span class="cov0" title="0">{
+                                log.Printf("panic: %v", err)
+                                resp.JSON(w, http.StatusInternalServerError, resp.Error{Message: "internal server error"})
+                        }</span>
+                }()
+                <span class="cov3" title="3">next.ServeHTTP(w, r)</span>
+        })
+}
+
+// metricsMiddleware adds HTTP request metrics
+func metricsMiddleware(next http.Handler) http.Handler <span class="cov6" title="13">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov3" title="3">{
+                start := time.Now()
+
+                // Wrap ResponseWriter to capture status code
+                rw := &amp;responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+                next.ServeHTTP(rw, r)
+
+                duration := time.Since(start).Seconds()
+                status := strconv.Itoa(rw.statusCode)
+
+                metrics.HTTPRequests.WithLabelValues(r.Method, r.URL.Path, status).Inc()
+                metrics.HTTPDuration.WithLabelValues(r.Method, r.URL.Path, status).Observe(duration)
+        }</span>)
+}
+
+type responseWriter struct {
+        http.ResponseWriter
+        statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) <span class="cov0" title="0">{
+        rw.statusCode = code
+        rw.ResponseWriter.WriteHeader(code)
+}</span>
+
+// rateLimitMiddleware applies rate limiting based on client IP
+func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler <span class="cov7" title="18">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov10" title="57">{
+                // Skip rate limiting for health and metrics endpoints
+                if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" </span><span class="cov6" title="10">{
+                        next.ServeHTTP(w, r)
+                        return
+                }</span>
+
+                <span class="cov9" title="47">ip := ratelimit.ExtractIP(r)
+                if !s.rateLimiter.Allow(ip) </span><span class="cov7" title="15">{
+                        resp.JSON(w, http.StatusTooManyRequests, resp.Error{
+                                Message: "rate limit exceeded",
+                        })
+                        return
+                }</span>
+
+                <span class="cov8" title="32">next.ServeHTTP(w, r)</span>
+        })
+}
+
+// GetRateLimitStats returns current rate limiting statistics
+func (s *Server) GetRateLimitStats() ratelimit.Stats <span class="cov2" title="2">{
+        return s.rateLimiter.GetStats()
+}</span>
+
+// UpdateRateLimitMetrics updates Prometheus metrics with current rate limiter stats
+func (s *Server) UpdateRateLimitMetrics() <span class="cov1" title="1">{
+        stats := s.rateLimiter.GetStats()
+        metrics.RateLimitGlobalTokens.Set(float64(stats.GlobalTokens))
+        metrics.RateLimitGlobalUtilization.Set(stats.GlobalUtilization)
+}</span>
+
+func (s *Server) handleOpenAPI(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        // Find the OpenAPI file relative to the project root
+        <span class="cov0" title="0">openapiPath := filepath.Join("docs", "openapi.yaml")
+
+        // Check if file exists
+        if _, err := os.Stat(openapiPath); os.IsNotExist(err) </span><span class="cov0" title="0">{
+                http.Error(w, "OpenAPI specification not found", http.StatusNotFound)
+                return
+        }</span>
+
+        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/yaml")
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        http.ServeFile(w, r, openapiPath)</span>
+}
+
+func (s *Server) handleSwaggerUI(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.Method != http.MethodGet </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        // Swagger UI HTML that loads the OpenAPI spec from /openapi.yaml
+        <span class="cov0" title="0">swaggerHTML := `&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
+    &lt;title&gt;Bitcoin LTP API Documentation&lt;/title&gt;
+    &lt;link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" /&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div id="swagger-ui"&gt;&lt;/div&gt;
+    &lt;script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"&gt;&lt;/script&gt;
+    &lt;script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"&gt;&lt;/script&gt;
+    &lt;script&gt;
+        window.onload = () =&gt; {
+            window.ui = SwaggerUIBundle({
+                url: '/openapi.yaml',
+                dom_id: '#swagger-ui',
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                layout: "StandaloneLayout",
+                tryItOutEnabled: true,
+                filter: true,
+                displayOperationId: false,
+                displayRequestDuration: true,
+            });
+        };
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;`
+
+        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.WriteHeader(http.StatusOK)
+        w.Write([]byte(swaggerHTML))</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package kraken
+
+import (
+        "context"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        "net/http"
+        "net/url"
+        "strings"
+        "time"
+
+        "github.com/Zmey56/go-exercise/internal/backoff"
+        "github.com/Zmey56/go-exercise/internal/metrics"
+)
+
+type Client struct {
+        baseURL string
+        http    *http.Client
+        backoff *backoff.Backoff
+}
+
+func NewHTTPClient(timeout time.Duration) *http.Client <span class="cov0" title="0">{
+        return &amp;http.Client{Timeout: timeout}
+}</span>
+
+func NewClient(baseURL string, httpClient *http.Client) *Client <span class="cov7" title="10">{
+        if httpClient == nil </span><span class="cov0" title="0">{
+                httpClient = NewHTTPClient(3 * time.Second)
+        }</span>
+        <span class="cov7" title="10">return &amp;Client{
+                baseURL: strings.TrimRight(baseURL, "/"),
+                http:    httpClient,
+                backoff: backoff.New(backoff.DefaultConfig()),
+        }</span>
+}
+
+// GetTickerPrices requests Kraken tickers for multiple symbols (comma-separated)
+// symbols: e.g. ["XBTUSD","XBTEUR"]
+func (c *Client) GetTickerPrices(ctx context.Context, symbols []string) (map[string]float64, error) <span class="cov8" title="11">{
+        start := time.Now()
+        var status string
+        defer func() </span><span class="cov8" title="11">{
+                metrics.KrakenRequests.WithLabelValues(status).Inc()
+                metrics.KrakenDuration.WithLabelValues(status).Observe(time.Since(start).Seconds())
+        }</span>()
+
+        <span class="cov8" title="11">if len(symbols) == 0 </span><span class="cov3" title="2">{
+                status = "error"
+                return nil, fmt.Errorf("no symbols provided")
+        }</span>
+
+        <span class="cov7" title="9">var result map[string]float64
+        err := c.backoff.Retry(ctx, "kraken", func() error </span><span class="cov10" title="21">{
+                var err error
+                result, err = c.makeRequest(ctx, symbols)
+                return err
+        }</span>, backoff.IsRetryableHTTPError)
+
+        <span class="cov7" title="9">if err != nil </span><span class="cov7" title="8">{
+                status = "error"
+                return nil, err
+        }</span>
+
+        <span class="cov1" title="1">status = "success"
+        return result, nil</span>
+}
+
+// makeRequest performs a single HTTP request to Kraken API
+func (c *Client) makeRequest(ctx context.Context, symbols []string) (map[string]float64, error) <span class="cov10" title="21">{
+        v := url.Values{}
+        v.Set("pair", strings.Join(symbols, ","))
+        endpoint := c.baseURL + "/0/public/Ticker?" + v.Encode()
+
+        req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov10" title="21">resp, err := c.http.Do(req)
+        if err != nil </span><span class="cov3" title="2">{
+                return nil, err
+        }</span>
+        <span class="cov9" title="19">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov9" title="16">{
+                b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+                // Return an HTTPError that can be checked by the retry logic
+                return nil, backoff.NewHTTPError(resp.StatusCode, string(b))
+        }</span>
+
+        <span class="cov4" title="3">var tr TickerResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;tr); err != nil </span><span class="cov1" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov3" title="2">if len(tr.Error) &gt; 0 </span><span class="cov1" title="1">{
+                // Kraken API errors are not retryable
+                return nil, errors.New(strings.Join(tr.Error, "; "))
+        }</span>
+
+        <span class="cov1" title="1">out := make(map[string]float64, len(tr.Result))
+        for sym, entry := range tr.Result </span><span class="cov1" title="1">{
+                if len(entry.C) == 0 </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                // Price comes as string, parse as float64
+                <span class="cov1" title="1">var price float64
+                if _, err := fmt.Sscan(entry.C[0], &amp;price); err == nil </span><span class="cov1" title="1">{
+                        out[sym] = price
+                }</span>
+        }
+
+        <span class="cov1" title="1">return out, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">package ltp
+
+import (
+        "context"
+        "fmt"
+        "sort"
+        "strings"
+
+        "github.com/Zmey56/go-exercise/internal/pairs"
+)
+
+// Quote represents a currency pair quote
+type Quote struct {
+        Pair   string  `json:"pair"`
+        Amount float64 `json:"amount"`
+}
+
+// HandlerError represents a handler error with HTTP code
+type HandlerError struct {
+        Code int
+        Msg  string
+}
+
+func (e *HandlerError) Error() string <span class="cov4" title="3">{
+        return e.Msg
+}</span>
+
+// KrakenAPI interface for working with Kraken API
+type KrakenAPI interface {
+        GetTickerPrices(ctx context.Context, symbols []string) (map[string]float64, error)
+}
+
+// Cache interface for caching (legacy interface for backward compatibility)
+type Cache interface {
+        Get(key string) (float64, bool)
+        Set(key string, value float64)
+}
+
+// Service represents the service for getting LTP
+type Service struct {
+        api   KrakenAPI
+        cache Cache
+}
+
+// NewService creates a new instance of LTP service
+func NewService(api KrakenAPI, cache Cache) *Service <span class="cov8" title="10">{
+        return &amp;Service{
+                api:   api,
+                cache: cache,
+        }
+}</span>
+
+// GetLTP maps to Kraken symbols, gets from cache what's available, fetches missing data from Kraken,
+// stores in cache and returns the list of quotes.
+func (s *Service) GetLTP(ctx context.Context, userPairs []string) ([]Quote, error) <span class="cov9" title="11">{
+        if len(userPairs) == 0 </span><span class="cov1" title="1">{
+                return nil, &amp;HandlerError{Code: 400, Msg: "no pairs provided"}
+        }</span>
+
+        // Normalization and deduplication
+        <span class="cov8" title="10">normalized := make([]string, 0, len(userPairs))
+        seen := map[string]struct{}{}
+        for _, p := range userPairs </span><span class="cov10" title="14">{
+                n, err := pairs.NormalizeUserPair(p)
+                if err != nil </span><span class="cov1" title="1">{
+                        return nil, &amp;HandlerError{Code: 400, Msg: err.Error()}
+                }</span>
+                <span class="cov9" title="13">if _, ok := seen[n]; !ok </span><span class="cov9" title="11">{
+                        seen[n] = struct{}{}
+                        normalized = append(normalized, n)
+                }</span>
+        }
+
+        // First try cache
+        <span class="cov8" title="9">type item struct{ userPair, krakenSym string }
+        var needed []item
+        results := make(map[string]float64, len(normalized)) // userPair -&gt; price
+
+        for _, up := range normalized </span><span class="cov9" title="11">{
+                sym, err := pairs.ToKrakenSymbol(up)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, &amp;HandlerError{Code: 400, Msg: err.Error()}
+                }</span>
+                <span class="cov9" title="11">if v, ok := s.cache.Get(sym); ok </span><span class="cov4" title="3">{
+                        results[up] = v
+                        continue</span>
+                }
+                <span class="cov8" title="8">needed = append(needed, item{userPair: up, krakenSym: sym})</span>
+        }
+
+        <span class="cov8" title="9">if len(needed) &gt; 0 </span><span class="cov7" title="7">{
+                // Collect list of symbols for request
+                syms := make([]string, 0, len(needed))
+                for _, it := range needed </span><span class="cov8" title="8">{
+                        syms = append(syms, it.krakenSym)
+                }</span>
+
+                // Request to Kraken
+                <span class="cov7" title="7">prices, err := s.api.GetTickerPrices(ctx, syms)
+                if err != nil </span><span class="cov1" title="1">{
+                        return nil, fmt.Errorf("kraken: %w", err)
+                }</span>
+
+                // Process results
+                <span class="cov7" title="6">for _, it := range needed </span><span class="cov7" title="7">{
+                        p, ok := prices[it.krakenSym]
+                        if !ok </span><span class="cov3" title="2">{
+                                // If Kraken didn't return symbol — this is 400 (unknown pair)
+                                // or temporary issue. Consider as 400 to clearly show to user.
+                                return nil, &amp;HandlerError{Code: 400, Msg: fmt.Sprintf("pair not found or unsupported: %s", it.userPair)}
+                        }</span>
+                        <span class="cov6" title="5">s.cache.Set(it.krakenSym, p)
+                        results[it.userPair] = p</span>
+                }
+        }
+
+        // Form alphabetically sorted list for response stability
+        <span class="cov7" title="6">out := make([]Quote, 0, len(results))
+        keys := make([]string, 0, len(results))
+        for k := range results </span><span class="cov8" title="8">{
+                keys = append(keys, k)
+        }</span>
+        <span class="cov7" title="6">sort.Slice(keys, func(i, j int) bool </span><span class="cov3" title="2">{ return strings.Compare(keys[i], keys[j]) &lt; 0 }</span>)
+
+        <span class="cov7" title="6">for _, k := range keys </span><span class="cov8" title="8">{
+                out = append(out, Quote{Pair: k, Amount: results[k]})
+        }</span>
+
+        <span class="cov7" title="6">return out, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">package pairs
+
+import (
+        "fmt"
+        "strings"
+)
+
+// NormalizeUserPair normalizes user input like
+// "BTC/USD" -&gt; "BTC/USD" (trim, uppercase and slash validation)
+func NormalizeUserPair(p string) (string, error) <span class="cov10" title="17">{
+        p = strings.TrimSpace(strings.ToUpper(p))
+        if p == "" || !strings.Contains(p, "/") </span><span class="cov5" title="4">{
+                return "", fmt.Errorf("invalid pair: %q (expected BASE/QUOTE)", p)
+        }</span>
+        <span class="cov9" title="13">parts := strings.Split(p, "/")
+        if len(parts) != 2 || parts[0] == "" || parts[1] == "" </span><span class="cov4" title="3">{
+                return "", fmt.Errorf("invalid pair: %q", p)
+        }</span>
+        <span class="cov8" title="10">return parts[0] + "/" + parts[1], nil</span>
+}
+
+// ToKrakenSymbol maps user pair to Kraken symbol
+// Support BTC→XXBT and main crosses: USD→ZUSD, EUR→ZEUR, CHF stays CHF
+func ToKrakenSymbol(userPair string) (string, error) <span class="cov7" title="8">{
+        n, err := NormalizeUserPair(userPair)
+        if err != nil </span><span class="cov3" title="2">{
+                return "", err
+        }</span>
+        <span class="cov6" title="6">parts := strings.Split(n, "/")
+        base, quote := parts[0], parts[1]
+
+        // Currency mapping for Kraken
+        switch base </span>{
+        case "BTC":<span class="cov6" title="6">
+                // For CHF shorter format XBT is used
+                if quote == "CHF" </span><span class="cov3" title="2">{
+                        base = "XBT"
+                }</span> else<span class="cov5" title="4"> {
+                        base = "XXBT"
+                }</span>
+        }
+
+        <span class="cov6" title="6">switch quote </span>{
+        case "USD":<span class="cov3" title="2">
+                quote = "ZUSD"</span>
+        case "EUR":<span class="cov3" title="2">
+                quote = "ZEUR"</span>
+        case "CHF":<span class="cov3" title="2"></span>
+                // CHF stays CHF in Kraken
+        }
+
+        <span class="cov6" title="6">return base + quote, nil</span>
+}
+
+// FromKrakenSymbol back to USER format (for response beauty), if needed
+func FromKrakenSymbol(sym string) (string, error) <span class="cov7" title="8">{
+        if len(sym) &lt; 6 </span><span class="cov1" title="1">{
+                return "", fmt.Errorf("invalid kraken symbol: %q", sym)
+        }</span>
+
+        <span class="cov7" title="7">var base, quote string
+
+        // Reverse mapping for different Kraken formats
+        switch </span>{
+        case strings.HasPrefix(sym, "XXBT"):<span class="cov5" title="4">
+                base = "BTC"
+                quote = sym[4:]</span> // Remove "XXBT"
+        case strings.HasPrefix(sym, "XBT"):<span class="cov3" title="2">
+                base = "BTC"
+                quote = sym[3:]</span> // Remove "XBT"
+        default:<span class="cov1" title="1">
+                return "", fmt.Errorf("unsupported kraken symbol: %q", sym)</span>
+        }
+
+        // Reverse currency mapping
+        <span class="cov6" title="6">switch quote </span>{
+        case "ZUSD":<span class="cov3" title="2">
+                quote = "USD"</span>
+        case "ZEUR":<span class="cov3" title="2">
+                quote = "EUR"</span>
+        case "CHF":<span class="cov3" title="2"></span>
+                // CHF stays CHF
+        default:<span class="cov0" title="0">
+                return "", fmt.Errorf("unsupported quote currency in symbol: %q", sym)</span>
+        }
+
+        <span class="cov6" title="6">return base + "/" + quote, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file14" style="display: none">package ratelimit
+
+import (
+        "sync"
+        "time"
+)
+
+// TokenBucket implements a token bucket rate limiter
+type TokenBucket struct {
+        mu           sync.Mutex
+        capacity     int64
+        tokens       int64
+        refillRate   int64 // tokens per second
+        lastRefill   time.Time
+        refillPeriod time.Duration
+}
+
+// NewTokenBucket creates a new token bucket
+func NewTokenBucket(capacity, refillRate int64) *TokenBucket <span class="cov7" title="18">{
+        now := time.Now()
+        return &amp;TokenBucket{
+                capacity:     capacity,
+                tokens:       capacity,
+                refillRate:   refillRate,
+                lastRefill:   now,
+                refillPeriod: time.Second / time.Duration(refillRate),
+        }
+}</span>
+
+// Allow checks if a request can proceed and consumes a token if so
+func (tb *TokenBucket) Allow() bool <span class="cov9" title="40">{
+        return tb.AllowN(1)
+}</span>
+
+// AllowN checks if n tokens are available and consumes them if so
+func (tb *TokenBucket) AllowN(n int64) bool <span class="cov9" title="43">{
+        tb.mu.Lock()
+        defer tb.mu.Unlock()
+
+        tb.refill()
+
+        if tb.tokens &gt;= n </span><span class="cov9" title="38">{
+                tb.tokens -= n
+                return true
+        }</span>
+        <span class="cov4" title="5">return false</span>
+}
+
+// Tokens returns the current number of available tokens
+func (tb *TokenBucket) Tokens() int64 <span class="cov6" title="9">{
+        tb.mu.Lock()
+        defer tb.mu.Unlock()
+        tb.refill()
+        return tb.tokens
+}</span>
+
+// Capacity returns the bucket capacity
+func (tb *TokenBucket) Capacity() int64 <span class="cov6" title="13">{
+        return tb.capacity
+}</span>
+
+// refill adds tokens based on elapsed time (must be called with lock held)
+func (tb *TokenBucket) refill() <span class="cov10" title="52">{
+        now := time.Now()
+        elapsed := now.Sub(tb.lastRefill)
+
+        if elapsed &lt;= 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        // Calculate tokens to add based on elapsed time and refill rate
+        <span class="cov10" title="52">tokensToAdd := int64(elapsed.Seconds() * float64(tb.refillRate))
+
+        if tokensToAdd &gt; 0 </span><span class="cov4" title="4">{
+                tb.tokens += tokensToAdd
+                if tb.tokens &gt; tb.capacity </span><span class="cov2" title="2">{
+                        tb.tokens = tb.capacity
+                }</span>
+                <span class="cov4" title="4">tb.lastRefill = now</span>
+        }
+}</pre>
+		
+		<pre class="file" id="file15" style="display: none">package ratelimit
+
+import (
+        "net"
+        "net/http"
+        "sync"
+        "time"
+
+        "github.com/Zmey56/go-exercise/internal/metrics"
+)
+
+// Config holds rate limiter configuration
+type Config struct {
+        // Per-IP limits
+        PerIPCapacity   int64 // tokens per IP
+        PerIPRefillRate int64 // tokens per second per IP
+
+        // Global limits
+        GlobalCapacity   int64 // total tokens across all IPs
+        GlobalRefillRate int64 // tokens per second globally
+
+        // Cleanup settings
+        IPCleanupInterval time.Duration // how often to clean up inactive IPs
+        IPIdleTimeout     time.Duration // how long before an IP is considered inactive
+}
+
+// DefaultConfig returns sensible default configuration
+func DefaultConfig() Config <span class="cov1" title="1">{
+        return Config{
+                PerIPCapacity:     100,   // 100 requests per IP
+                PerIPRefillRate:   10,    // 10 requests per second per IP
+                GlobalCapacity:    1000,  // 1000 requests total
+                GlobalRefillRate:  100,   // 100 requests per second globally
+                IPCleanupInterval: 5 * time.Minute,
+                IPIdleTimeout:     10 * time.Minute,
+        }
+}</span>
+
+// IPEntry holds per-IP rate limiting data
+type IPEntry struct {
+        bucket   *TokenBucket
+        lastSeen time.Time
+}
+
+// RateLimiter manages both per-IP and global rate limiting
+type RateLimiter struct {
+        config       Config
+        globalBucket *TokenBucket
+        ipBuckets    map[string]*IPEntry
+        mu           sync.RWMutex
+        stopCleanup  chan struct{}
+}
+
+// NewRateLimiter creates a new rate limiter with the given configuration
+func NewRateLimiter(config Config) *RateLimiter <span class="cov5" title="4">{
+        rl := &amp;RateLimiter{
+                config:       config,
+                globalBucket: NewTokenBucket(config.GlobalCapacity, config.GlobalRefillRate),
+                ipBuckets:    make(map[string]*IPEntry),
+                stopCleanup:  make(chan struct{}),
+        }
+
+        // Start cleanup goroutine
+        go rl.cleanupRoutine()
+
+        return rl
+}</span>
+
+// Allow checks if a request from the given IP is allowed
+func (rl *RateLimiter) Allow(ip string) bool <span class="cov10" title="18">{
+        // Check global limit first (fail fast)
+        if !rl.globalBucket.Allow() </span><span class="cov3" title="2">{
+                metrics.RateLimitRejects.WithLabelValues("global").Inc()
+                return false
+        }</span>
+
+        // Check per-IP limit
+        <span class="cov9" title="16">if !rl.allowIP(ip) </span><span class="cov1" title="1">{
+                // Return token to global bucket since IP limit failed
+                rl.returnGlobalToken()
+                metrics.RateLimitRejects.WithLabelValues("per_ip").Inc()
+                return false
+        }</span>
+
+        <span class="cov9" title="15">metrics.RateLimitAllows.Inc()
+        return true</span>
+}
+
+// allowIP checks per-IP rate limit
+func (rl *RateLimiter) allowIP(ip string) bool <span class="cov9" title="16">{
+        rl.mu.Lock()
+        defer rl.mu.Unlock()
+
+        now := time.Now()
+
+        // Get or create IP entry
+        entry, exists := rl.ipBuckets[ip]
+        if !exists </span><span class="cov7" title="8">{
+                entry = &amp;IPEntry{
+                        bucket:   NewTokenBucket(rl.config.PerIPCapacity, rl.config.PerIPRefillRate),
+                        lastSeen: now,
+                }
+                rl.ipBuckets[ip] = entry
+                metrics.RateLimitIPsTracked.Set(float64(len(rl.ipBuckets)))
+        }</span>
+
+        <span class="cov9" title="16">entry.lastSeen = now
+        return entry.bucket.Allow()</span>
+}
+
+// returnGlobalToken adds a token back to the global bucket (used when IP limit fails)
+func (rl *RateLimiter) returnGlobalToken() <span class="cov1" title="1">{
+        rl.globalBucket.mu.Lock()
+        defer rl.globalBucket.mu.Unlock()
+
+        if rl.globalBucket.tokens &lt; rl.globalBucket.capacity </span><span class="cov1" title="1">{
+                rl.globalBucket.tokens++
+        }</span>
+}
+
+// cleanupRoutine periodically removes inactive IP entries
+func (rl *RateLimiter) cleanupRoutine() <span class="cov5" title="4">{
+        ticker := time.NewTicker(rl.config.IPCleanupInterval)
+        defer ticker.Stop()
+
+        for </span><span class="cov7" title="7">{
+                select </span>{
+                case &lt;-ticker.C:<span class="cov4" title="3">
+                        rl.cleanup()</span>
+                case &lt;-rl.stopCleanup:<span class="cov5" title="4">
+                        return</span>
+                }
+        }
+}
+
+// cleanup removes IP entries that haven't been seen recently
+func (rl *RateLimiter) cleanup() <span class="cov4" title="3">{
+        rl.mu.Lock()
+        defer rl.mu.Unlock()
+
+        now := time.Now()
+        cutoff := now.Add(-rl.config.IPIdleTimeout)
+
+        for ip, entry := range rl.ipBuckets </span><span class="cov6" title="6">{
+                if entry.lastSeen.Before(cutoff) </span><span class="cov4" title="3">{
+                        delete(rl.ipBuckets, ip)
+                }</span>
+        }
+
+        <span class="cov4" title="3">metrics.RateLimitIPsTracked.Set(float64(len(rl.ipBuckets)))</span>
+}
+
+// Stop shuts down the rate limiter cleanup routine
+func (rl *RateLimiter) Stop() <span class="cov5" title="4">{
+        close(rl.stopCleanup)
+}</span>
+
+// GetStats returns current rate limiter statistics
+func (rl *RateLimiter) GetStats() Stats <span class="cov5" title="4">{
+        rl.mu.RLock()
+        defer rl.mu.RUnlock()
+
+        globalTokens := rl.globalBucket.Tokens()
+        ipCount := len(rl.ipBuckets)
+
+        return Stats{
+                GlobalTokens:     globalTokens,
+                GlobalCapacity:   rl.globalBucket.Capacity(),
+                TrackedIPs:       ipCount,
+                GlobalUtilization: float64(rl.globalBucket.Capacity()-globalTokens) / float64(rl.globalBucket.Capacity()),
+        }
+}</span>
+
+// Stats holds rate limiter statistics
+type Stats struct {
+        GlobalTokens      int64
+        GlobalCapacity    int64
+        TrackedIPs        int
+        GlobalUtilization float64 // 0.0 to 1.0
+}
+
+// ExtractIP extracts the real IP address from an HTTP request
+func ExtractIP(r *http.Request) string <span class="cov6" title="5">{
+        // Check X-Forwarded-For header (most common proxy header)
+        if xff := r.Header.Get("X-Forwarded-For"); xff != "" </span><span class="cov3" title="2">{
+                // Take the first IP in the chain
+                if ip, _, err := net.SplitHostPort(xff); err == nil </span><span class="cov0" title="0">{
+                        return ip
+                }</span>
+                <span class="cov3" title="2">return xff</span>
+        }
+
+        // Check X-Real-IP header
+        <span class="cov4" title="3">if xri := r.Header.Get("X-Real-IP"); xri != "" </span><span class="cov1" title="1">{
+                return xri
+        }</span>
+
+        // Fall back to remote address
+        <span class="cov3" title="2">if ip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil </span><span class="cov1" title="1">{
+                return ip
+        }</span>
+
+        <span class="cov1" title="1">return r.RemoteAddr</span>
+}</pre>
+		
+		<pre class="file" id="file16" style="display: none">package resp
+
+import (
+        "encoding/json"
+        "net/http"
+)
+
+type Error struct {
+        Message string `json:"message"`
+}
+
+func JSON(w http.ResponseWriter, code int, body any) <span class="cov0" title="0">{
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(code)
+        _ = json.NewEncoder(w).Encode(body)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

@@ -35,8 +35,9 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 # Copy user
 COPY --from=builder /etc/passwd /etc/passwd
 
-# Copy built application
+# Copy built application and documentation
 COPY --from=builder /build/server /server
+COPY --from=builder /build/docs /docs
 
 # Switch to non-privileged user
 USER appuser

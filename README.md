@@ -229,3 +229,34 @@ The project follows clean architecture principles with separation of concerns:
 The public Kraken API is used to retrieve the LTP information
 [Kraken API Documentation](https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getTickerInformation)
 (The last traded price value is called "last trade closed")
+
+# Make commands
+Build & Development:
+- make build - Build server binary
+- make build-docker - Optimized Docker build
+- make dev - Start development server
+- make dev-watch - Hot reload (with air)
+
+Testing & Quality:
+- make test - Run all tests
+- make test-short - Quick tests only
+- make coverage - Generate coverage reports (67.4% overall)
+- make coverage-html - Open HTML coverage report
+- make benchmark - Run performance benchmarks
+- make lint - Run linters/go vet
+- make fmt - Format code
+- make vet - Static analysis
+
+Docker Operations:
+- make docker-build - Build Docker image
+- make docker-up - Start containers
+- make docker-down - Stop containers
+- make docker-logs - Show logs
+- make docker-restart - Restart containers
+
+Maintenance:
+- make clean - Clean artifacts
+- make deps - Update dependencies
+- make ci - Full CI pipeline
+- make health - Check API health
+- make help - Show all commands

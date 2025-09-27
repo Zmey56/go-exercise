@@ -106,7 +106,7 @@ func NewKrakenCheck(client interface {
 func (k *KrakenCheck) Check(ctx context.Context) CheckResult {
 	if k.client == nil {
 		return CheckResult{
-			Name:   "kraken",
+			Name:   "kraken_api",
 			Status: StatusUnhealthy,
 			Error:  "kraken client is nil",
 		}
@@ -118,14 +118,14 @@ func (k *KrakenCheck) Check(ctx context.Context) CheckResult {
 	_, err := k.client.GetTickerPrices(checkCtx, []string{"XBTUSD"})
 	if err != nil {
 		return CheckResult{
-			Name:   "kraken",
+			Name:   "kraken_api",
 			Status: StatusUnhealthy,
-			Error:  err.Error(),
+			Error:  "kraken API health check failed: " + err.Error(),
 		}
 	}
 
 	return CheckResult{
-		Name:   "kraken",
+		Name:   "kraken_api",
 		Status: StatusHealthy,
 	}
 }
